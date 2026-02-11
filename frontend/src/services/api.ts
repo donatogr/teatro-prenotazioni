@@ -1,0 +1,93 @@
+const API_BASE = '/api';
+
+function sessionHeaders(sessionId: string): HeadersInit {
+  return { 'X-Session-Id': sessionId };
+}
+
+export async function getPosti(sessionId: string = ''): Promise<import('../types').Posto[]> {
+  const url = sessionId ? `${API_BASE}/posti?session_id=${encodeURIComponent(sessionId)}` : `${API_BASE}/posti`;
+  const r = await fetch(url, { headers: sessionId ? sessionHeaders(sessionId) : {} });
+  if (!r.ok) throw new Error('Errore caricamento posti');
+  return r.json();
+}
+
+export async function bloccaPosti(
+  sessionId: string,
+  postoIds: number[]
+): Promise<{ ok: boolean; bloccati: number[] }> {
+  const r = await fetch(`${API_BASE}/blocchi`, {
+    method: 'POST',
+    headers: { 'Content-Type': 'application/json', ...sessionHeaders(sessionId) },
+    body: JSON.stringify({ session_id: sessionId, posto_ids: postoIds }),
+  });
+  const data = await r.json().catch(() => ({}));
+  if (r.status === 409) throw new Error(data.error || 'Alcuni posti non sono più disponibili');
+  if (!r.ok) throw new Error(data.error || 'Errore blocco posti');
+  return data;
+}
+
+export async function rinnovaBlocchi(sessionId: string, postoIds: number[]): Promise<void> {
+  if (!sessionId || postoIds.length === 0) return;
+  await fetch(`${API_BASE}/blocchi/rinnovo`, {
+    method: 'PUT',
+    headers: { 'Content-Type': 'application/json', ...sessionHeaders(sessionId) },
+    body: JSON.stringify({ session_id: sessionId, posto_ids: postoIds }),
+  });
+}
+
+export async function rilascioBlocchi(sessionId: string, postoIds: number[]): Promise<void> {
+  if (!sessionId || postoIds.length === 0) return;
+  await fetch(`${API_BASE}/blocchi`, {
+    method: 'DELETE',
+    headers: { 'Content-Type': 'application/json', ...sessionHeaders(sessionId) },
+    body: JSON.stringify({ session_id: sessionId, posto_ids: postoIds }),
+  });
+}
+
+export async function creaPrenotazione(
+  postoIds: number[],
+  nome: string,
+  email: string,
+  sessionId: string = ''
+): Promise<{ prenotazioni: import('../types').Prenotazione[] }> {
+  const r = await fetch(`${API_BASE}/prenotazioni`, {
+    method: 'POST',
+    headers: { 'Content-Type': 'application/json', ...(sessionId ? sessionHeaders(sessionId) : {}) },
+    body: JSON.stringify({ posto_ids: postoIds, nome, email, session_id: sessionId }),
+  });
+  const data = await r.json().catch(() => ({}));
+  if (!r.ok) throw new Error(data.error || 'Errore prenotazione');
+  return data;
+}
+
+export async function cancellaPrenotazione(id: number): Promise<void> {
+  const r = await fetch(`${API_BASE}/prenotazioni/${id}`, { method: 'DELETE' });
+  if (!r.ok) throw new Error('Errore cancellazione');
+}
+
+export async function getPrenotazioni(): Promise<import('../types').Prenotazione[]> {
+  const r = await fetch(`${API_BASE}/prenotazioni`);
+  if (!r.ok) throw new Error('Errore caricamento prenotazioni');
+  return r.json();
+}
+
+export async function getFile(password: string): Promise<{ file: string[]; riservate: string[] }> {
+  const r = await fetch(`${API_BASE}/admin/file?password=${encodeURIComponent(password)}`);
+  if (!r.ok) throw new Error('Non autorizzato');
+  return r.json();
+}
+
+export async function setFilaRiservata(
+  fila: string,
+  riservato: boolean,
+  password: string
+): Promise<{ aggiornati: number }> {
+  const r = await fetch(`${API_BASE}/admin/file/${encodeURIComponent(fila)}`, {
+    method: 'PUT',
+    headers: { 'Content-Type': 'application/json', 'X-Admin-Password': password },
+    body: JSON.stringify({ riservato_staff: riservato }),
+  });
+  const data = await r.json().catch(() => ({}));
+  if (!r.ok) throw new Error(data.error || 'Errore');
+  return data;
+}

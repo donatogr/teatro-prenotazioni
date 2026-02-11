@@ -1,0 +1,50 @@
+.seat {
+  width: 32px;
+  height: 32px;
+  border-radius: 6px;
+  border: 2px solid rgba(255, 255, 255, 0.3);
+  font-size: 12px;
+  font-weight: 600;
+  cursor: pointer;
+  transition: transform 0.15s, box-shadow 0.15s;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+}
+
+.seat:disabled {
+  cursor: not-allowed;
+}
+
+.seat:not(:disabled):hover {
+  transform: scale(1.08);
+  box-shadow: 0 2px 8px rgba(0, 0, 0, 0.3);
+}
+
+.disponibile {
+  background: #22c55e;
+  color: #fff;
+}
+
+.occupato {
+  background: #ef4444;
+  color: #fff;
+  opacity: 0.9;
+}
+
+.nonDisponibile {
+  background: #4b5563;
+  color: #9ca3af;
+}
+
+.selezionato {
+  background: #eab308;
+  color: #1a1a2e;
+  border-color: #facc15;
+}
+
+.bloccatoAltri {
+  background: #f97316;
+  color: #fff;
+  opacity: 0.85;
+}

@@ -1,0 +1,207 @@
+from datetime import datetime, timedelta
+from flask import Blueprint, request, jsonify, current_app
+from sqlalchemy import text
+from app import db
+from models import Posto, Prenotazione, Blocco
+
+api_bp = Blueprint('api', __name__)
+
+def _pulisci_blocchi_scaduti():
+    """Rimuove tutti i blocchi con scadenza passata."""
+    now = datetime.utcnow()
+    Blocco.query.filter(Blocco.scadenza < now).delete()
+    db.session.commit()
+
+def _get_scadenza():
+    minuti = current_app.config.get('BLOCCO_DURATA_MINUTI', 5)
+    return datetime.utcnow() + timedelta(minutes=minuti)
+
+def _posto_occupato(posto):
+    return Prenotazione.query.filter_by(posto_id=posto.id, stato='confermata').first() is not None
+
+def _posto_blocco_attivo(posto):
+    """Ritorna il Blocco attivo per il posto se esiste (scadenza > now), altrimenti None."""
+    now = datetime.utcnow()
+    return Blocco.query.filter_by(posto_id=posto.id).filter(Blocco.scadenza > now).first()
+
+def _posto_stato(posto, session_id=None):
+    if posto.riservato_staff or not posto.disponibile:
+        return 'non_disponibile'
+    if _posto_occupato(posto):
+        return 'occupato'
+    blocco = _posto_blocco_attivo(posto)
+    if blocco:
+        if session_id and blocco.session_id == session_id:
+            return 'bloccato_da_me'
+        return 'bloccato'
+    return 'disponibile'
+
+def _serialize_posto(posto, session_id=None):
+    return {
+        'id': posto.id,
+        'fila': posto.fila,
+        'numero': posto.numero,
+        'disponibile': posto.disponibile,
+        'riservato_staff': posto.riservato_staff,
+        'stato': _posto_stato(posto, session_id)
+    }
+
+@api_bp.route('/posti', methods=['GET'])
+def get_posti():
+    _pulisci_blocchi_scaduti()
+    session_id = request.args.get('session_id') or request.headers.get('X-Session-Id') or ''
+    posti = Posto.query.order_by(Posto.fila, Posto.numero).all()
+    return jsonify([_serialize_posto(p, session_id) for p in posti])
+
+@api_bp.route('/prenotazioni', methods=['POST'])
+def crea_prenotazione():
+    data = request.get_json() or {}
+    posto_ids = data.get('posto_ids', [])
+    nome = (data.get('nome') or '').strip()
+    email = (data.get('email') or '').strip()
+    if not nome or not email:
+        return jsonify({'error': 'Nome e email richiesti'}), 400
+    if not posto_ids:
+        return jsonify({'error': 'Seleziona almeno un posto'}), 400
+    try:
+        _pulisci_blocchi_scaduti()
+        # Lock per concorrenza: su SQLite BEGIN IMMEDIATE acquisisce il lock subito (prima di qualsiasi lettura)
+        bind = db.session.get_bind()
+        if bind.dialect.name == 'sqlite':
+            db.session.execute(text('BEGIN IMMEDIATE'))
+        for pid in posto_ids:
+            posto = Posto.query.get(pid)
+            if not posto:
+                db.session.rollback()
+                return jsonify({'error': f'Posto {pid} non trovato'}), 400
+            if posto.riservato_staff or not posto.disponibile:
+                db.session.rollback()
+                return jsonify({'error': f'Posto {posto.fila}{posto.numero} non disponibile'}), 400
+            if _posto_occupato(posto):
+                db.session.rollback()
+                return jsonify({'error': f'Posto {posto.fila}{posto.numero} già occupato. Ricarica la pagina e riprova.'}), 400
+            blocco = _posto_blocco_attivo(posto)
+            if blocco:
+                db.session.rollback()
+                return jsonify({'error': f'Posto {posto.fila}{posto.numero} non più disponibile (blocco scaduto o occupato). Ricarica e riprova.'}), 400
+        created = []
+        for pid in posto_ids:
+            pren = Prenotazione(posto_id=pid, nome=nome, email=email, stato='confermata')
+            db.session.add(pren)
+            created.append(pren)
+        # Rilascia blocchi sui posti prenotati (qualsiasi session_id)
+        Blocco.query.filter(Blocco.posto_id.in_(posto_ids)).delete(synchronize_session=False)
+        db.session.commit()
+        return jsonify({'prenotazioni': [p.to_dict() for p in created]})
+    except Exception as e:
+        db.session.rollback()
+        return jsonify({'error': str(e)}), 500
+
+@api_bp.route('/prenotazioni', methods=['GET'])
+def list_prenotazioni():
+    pren = Prenotazione.query.filter_by(stato='confermata').order_by(Prenotazione.timestamp.desc()).all()
+    return jsonify([p.to_dict() for p in pren])
+
+@api_bp.route('/prenotazioni/<int:pid>', methods=['DELETE'])
+def cancella_prenotazione(pid):
+    pren = Prenotazione.query.get(pid)
+    if not pren:
+        return jsonify({'error': 'Prenotazione non trovata'}), 404
+    pren.stato = 'cancellata'
+    db.session.commit()
+    return jsonify({'ok': True})
+
+@api_bp.route('/admin/file/<fila>', methods=['PUT'])
+def admin_file(fila):
+    data = request.get_json() or {}
+    password = data.get('password') or request.headers.get('X-Admin-Password')
+    if password != current_app.config.get('ADMIN_PASSWORD'):
+        return jsonify({'error': 'Non autorizzato'}), 401
+    riservato = data.get('riservato_staff', True)
+    updated = Posto.query.filter_by(fila=fila.upper()).update({'riservato_staff': riservato})
+    db.session.commit()
+    return jsonify({'aggiornati': updated})
+
+@api_bp.route('/admin/file', methods=['GET'])
+def admin_list_file():
+    password = request.headers.get('X-Admin-Password') or request.args.get('password')
+    if password != current_app.config.get('ADMIN_PASSWORD'):
+        return jsonify({'error': 'Non autorizzato'}), 401
+    from sqlalchemy import distinct
+    file = db.session.query(Posto.fila).distinct().order_by(Posto.fila).all()
+    file_list = [f[0] for f in file]
+    riservate = db.session.query(Posto.fila).filter_by(riservato_staff=True).distinct().all()
+    riservate_list = [r[0] for r in riservate]
+    return jsonify({'file': file_list, 'riservate': riservate_list})
+
+
+# --- Blocco temporaneo posti ---
+
+@api_bp.route('/blocchi', methods=['POST'])
+def blocca_posti():
+    """Blocca i posti per la session_id. Crea nuovi blocchi o rinnova (scadenza +5 min) se già bloccati da questa session."""
+    _pulisci_blocchi_scaduti()
+    data = request.get_json() or {}
+    posto_ids = data.get('posto_ids', [])
+    session_id = (data.get('session_id') or request.headers.get('X-Session-Id') or '').strip()
+    if not session_id:
+        return jsonify({'error': 'session_id richiesto'}), 400
+    if not posto_ids:
+        return jsonify({'ok': True, 'bloccati': []})
+    scadenza = _get_scadenza()
+    bloccati = []
+    conflitti = []
+    for pid in posto_ids:
+        posto = Posto.query.get(pid)
+        if not posto or posto.riservato_staff or not posto.disponibile or _posto_occupato(posto):
+            continue
+        blocco = _posto_blocco_attivo(posto)
+        if blocco:
+            if blocco.session_id == session_id:
+                blocco.scadenza = scadenza
+                bloccati.append(pid)
+            else:
+                conflitti.append(pid)
+        else:
+            db.session.add(Blocco(posto_id=pid, session_id=session_id, scadenza=scadenza))
+            bloccati.append(pid)
+    db.session.commit()
+    if conflitti:
+        return jsonify({'error': 'Alcuni posti sono stati bloccati da un altro utente.', 'bloccati': bloccati, 'conflitti': conflitti}), 409
+    return jsonify({'ok': True, 'bloccati': bloccati})
+
+
+@api_bp.route('/blocchi/rinnovo', methods=['PUT'])
+def rinnova_blocchi():
+    """Rinnova la scadenza (+5 min) per i blocchi della session_id sui posti indicati."""
+    _pulisci_blocchi_scaduti()
+    data = request.get_json() or {}
+    posto_ids = data.get('posto_ids', [])
+    session_id = (data.get('session_id') or request.headers.get('X-Session-Id') or '').strip()
+    if not session_id or not posto_ids:
+        return jsonify({'ok': True})
+    scadenza = _get_scadenza()
+    now = datetime.utcnow()
+    Blocco.query.filter(
+        Blocco.session_id == session_id,
+        Blocco.posto_id.in_(posto_ids),
+        Blocco.scadenza > now
+    ).update({'scadenza': scadenza}, synchronize_session=False)
+    db.session.commit()
+    return jsonify({'ok': True})
+
+
+@api_bp.route('/blocchi', methods=['DELETE'])
+def rilascio_blocchi():
+    """Rilascia i blocchi sui posti per la session_id (es. utente deseleziona posti)."""
+    data = request.get_json() or {}
+    posto_ids = data.get('posto_ids', [])
+    session_id = (data.get('session_id') or request.headers.get('X-Session-Id') or '').strip()
+    if not session_id or not posto_ids:
+        return jsonify({'ok': True})
+    Blocco.query.filter(
+        Blocco.session_id == session_id,
+        Blocco.posto_id.in_(posto_ids)
+    ).delete(synchronize_session=False)
+    db.session.commit()
+    return jsonify({'ok': True})
