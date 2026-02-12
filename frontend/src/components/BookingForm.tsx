@@ -1,10 +1,12 @@
-import { useState } from 'react'
+import { useState, useMemo } from 'react'
 import { creaPrenotazione } from '../services/api'
+import type { Posto } from '../types'
 import styles from './BookingForm.module.css'
 
 const EMAIL_RE = /^[^\s@]+@[^\s@]+\.[^\s@]+$/
 
 interface BookingFormProps {
+  posti: Posto[]
   selectedIds: number[]
   onSuccess: () => void
   onError: (msg: string) => void
@@ -13,12 +15,22 @@ interface BookingFormProps {
 }
 
 export function BookingForm({
+  posti,
   selectedIds,
   onSuccess,
   onError,
   disabled,
   sessionId = '',
 }: BookingFormProps) {
+  const selectedList = useMemo(() => {
+    const byId = new Map(posti.map((p) => [p.id, p]))
+    return selectedIds
+      .map((id) => byId.get(id))
+      .filter((p): p is Posto => p != null)
+      .sort((a, b) => a.fila.localeCompare(b.fila) || a.numero - b.numero)
+      .map((p) => `${p.fila}${p.numero}`)
+      .join(', ')
+  }, [posti, selectedIds])
   const [nome, setNome] = useState('')
   const [email, setEmail] = useState('')
   const [loading, setLoading] = useState(false)
@@ -83,7 +95,8 @@ export function BookingForm({
         />
       </div>
       <p className={styles.hint}>
-        Posti selezionati: {selectedIds.length}. Il pagamento avverrà sul posto.
+        Posti selezionati: {selectedIds.length}
+        {selectedList && ` – ${selectedList}`}
       </p>
       <button
         type="submit"

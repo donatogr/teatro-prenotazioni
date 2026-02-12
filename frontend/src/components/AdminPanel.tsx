@@ -558,7 +558,7 @@ function MappaPrenotazioni({
                 <span className={styles.filaLabel}>{fila}</span>
                 <div className={styles.adminSeats}>
                   {byFila[fila]
-                    .sort((a, b) => a.numero - b.numero)
+                    .sort((a, b) => b.numero - a.numero)
                     .map((posto) => {
                       const occupato = posto.stato === 'occupato'
                       const personKey =
@@ -673,7 +673,7 @@ function BloccaPosti({
                 </button>
                 <div className={styles.adminSeats}>
                   {byFila[fila]
-                    .sort((a, b) => a.numero - b.numero)
+                    .sort((a, b) => b.numero - a.numero)
                     .map((posto) => {
                       const occupato = posto.stato === 'occupato'
                       const isRiservato = posto.riservato_staff

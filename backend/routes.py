@@ -53,6 +53,25 @@ def _serialize_posto(posto, session_id=None):
             out['prenotazione_email'] = pren.email
     return out
 
+@api_bp.route('/spettacolo', methods=['GET'])
+def get_spettacolo():
+    """Dati spettacolo per la pagina pubblica (senza auth)."""
+    row = Impostazioni.query.get(1)
+    if not row:
+        return jsonify({
+            'nome_teatro': '',
+            'nome_spettacolo': '',
+            'data_ora_evento': None,
+            'gruppi_file': [],
+        })
+    return jsonify({
+        'nome_teatro': row.nome_teatro or '',
+        'nome_spettacolo': row.nome_spettacolo or '',
+        'data_ora_evento': row.data_ora_evento.isoformat() if row.data_ora_evento else None,
+        'gruppi_file': row.get_gruppi_file(),
+    })
+
+
 @api_bp.route('/posti', methods=['GET'])
 def get_posti():
     _pulisci_blocchi_scaduti()

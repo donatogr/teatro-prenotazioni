@@ -14,7 +14,7 @@ describe('BookingForm', () => {
 
   it('mostra il form con nome, email e pulsante', () => {
     render(
-      <BookingForm selectedIds={[1]} onSuccess={onSuccess} onError={onError} />
+      <BookingForm posti={[{ id: 1, fila: 'A', numero: 1, disponibile: true, riservato_staff: false, stato: 'disponibile' }]} selectedIds={[1]} onSuccess={onSuccess} onError={onError} />
     )
     expect(screen.getByLabelText(/nome/i)).toBeInTheDocument()
     expect(screen.getByLabelText(/email/i)).toBeInTheDocument()
@@ -24,7 +24,7 @@ describe('BookingForm', () => {
   it('chiama onError se nome vuoto', async () => {
     const user = userEvent.setup()
     render(
-      <BookingForm selectedIds={[1]} onSuccess={onSuccess} onError={onError} />
+      <BookingForm posti={[{ id: 1, fila: 'A', numero: 1, disponibile: true, riservato_staff: false, stato: 'disponibile' }]} selectedIds={[1]} onSuccess={onSuccess} onError={onError} />
     )
     await user.type(screen.getByLabelText(/email/i), 'test@test.it')
     await user.click(screen.getByRole('button', { name: /conferma/i }))
@@ -35,7 +35,7 @@ describe('BookingForm', () => {
   it('chiama onError se email vuota', async () => {
     const user = userEvent.setup()
     render(
-      <BookingForm selectedIds={[1]} onSuccess={onSuccess} onError={onError} />
+      <BookingForm posti={[{ id: 1, fila: 'A', numero: 1, disponibile: true, riservato_staff: false, stato: 'disponibile' }]} selectedIds={[1]} onSuccess={onSuccess} onError={onError} />
     )
     await user.type(screen.getByLabelText(/nome/i), 'Mario')
     await user.click(screen.getByRole('button', { name: /conferma/i }))
@@ -45,7 +45,7 @@ describe('BookingForm', () => {
   it('chiama onError se email non valida', async () => {
     const user = userEvent.setup()
     render(
-      <BookingForm selectedIds={[1]} onSuccess={onSuccess} onError={onError} />
+      <BookingForm posti={[{ id: 1, fila: 'A', numero: 1, disponibile: true, riservato_staff: false, stato: 'disponibile' }]} selectedIds={[1]} onSuccess={onSuccess} onError={onError} />
     )
     await user.type(screen.getByLabelText(/nome/i), 'Mario')
     await user.type(screen.getByLabelText(/email/i), 'non-email')
@@ -55,7 +55,7 @@ describe('BookingForm', () => {
 
   it('chiama onError se nessun posto selezionato', async () => {
     render(
-      <BookingForm selectedIds={[]} onSuccess={onSuccess} onError={onError} />
+      <BookingForm posti={[]} selectedIds={[]} onSuccess={onSuccess} onError={onError} />
     )
     await userEvent.type(screen.getByLabelText(/nome/i), 'Mario')
     await userEvent.type(screen.getByLabelText(/email/i), 'mario@test.it')
@@ -69,7 +69,7 @@ describe('BookingForm', () => {
     vi.stubGlobal('fetch', mockFetch)
 
     render(
-      <BookingForm selectedIds={[1]} onSuccess={onSuccess} onError={onError} />
+      <BookingForm posti={[{ id: 1, fila: 'A', numero: 1, disponibile: true, riservato_staff: false, stato: 'disponibile' }]} selectedIds={[1]} onSuccess={onSuccess} onError={onError} />
     )
     await user.type(screen.getByLabelText(/nome/i), 'Mario Rossi')
     await user.type(screen.getByLabelText(/email/i), 'mario@test.it')

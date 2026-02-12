@@ -4,6 +4,17 @@ function sessionHeaders(sessionId: string): HeadersInit {
   return { 'X-Session-Id': sessionId };
 }
 
+export async function getSpettacolo(): Promise<{
+  nome_teatro: string;
+  nome_spettacolo: string;
+  data_ora_evento: string | null;
+  gruppi_file: { lettere: string; nome: string }[];
+}> {
+  const r = await fetch(`${API_BASE}/spettacolo`);
+  if (!r.ok) return { nome_teatro: '', nome_spettacolo: '', data_ora_evento: null, gruppi_file: [] };
+  return r.json();
+}
+
 export async function getPosti(sessionId: string = ''): Promise<import('../types').Posto[]> {
   const url = sessionId ? `${API_BASE}/posti?session_id=${encodeURIComponent(sessionId)}` : `${API_BASE}/posti`;
   const r = await fetch(url, { headers: sessionId ? sessionHeaders(sessionId) : {} });

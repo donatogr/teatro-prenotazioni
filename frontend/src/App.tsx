@@ -1,6 +1,6 @@
 import { useState, useEffect, useCallback, useMemo } from 'react'
 import type { Posto } from './types'
-import { getPosti, bloccaPosti, rinnovaBlocchi, rilascioBlocchi } from './services/api'
+import { getPosti, getSpettacolo, bloccaPosti, rinnovaBlocchi, rilascioBlocchi } from './services/api'
 import { TeatroMap } from './components/TeatroMap'
 import { BookingForm } from './components/BookingForm'
 import { AdminPanel } from './components/AdminPanel'
@@ -13,9 +13,14 @@ function App() {
   const sessionId = useMemo(() => crypto.randomUUID(), [])
   const [posti, setPosti] = useState<Posto[]>([])
   const [selectedIds, setSelectedIds] = useState<number[]>([])
+  const [spettacolo, setSpettacolo] = useState<{ nome_teatro: string; nome_spettacolo: string; data_ora_evento: string | null; gruppi_file: { lettere: string; nome: string }[] }>({ nome_teatro: '', nome_spettacolo: '', data_ora_evento: null, gruppi_file: [] })
   const [error, setError] = useState('')
   const [success, setSuccess] = useState('')
   const [showAdmin, setShowAdmin] = useState(false)
+
+  useEffect(() => {
+    getSpettacolo().then(setSpettacolo)
+  }, [])
 
   const fetchPosti = useCallback(async () => {
     try {
@@ -77,10 +82,32 @@ function App() {
     setTimeout(() => setSuccess(''), 5000)
   }, [fetchPosti])
 
+  const formatDataOra = (iso: string | null) => {
+    if (!iso) return ''
+    try {
+      const d = new Date(iso)
+      return d.toLocaleDateString('it-IT', { day: 'numeric', month: 'long', year: 'numeric' }) +
+        ' ore ' + d.toLocaleTimeString('it-IT', { hour: '2-digit', minute: '2-digit' })
+    } catch {
+      return iso
+    }
+  }
+
   return (
     <div className={styles.app}>
       <header className={styles.header}>
-        <h1>Prenotazione posti – Teatro</h1>
+        <div className={styles.headerTitles}>
+          <h1 className={styles.titleMain}>
+            {spettacolo.nome_teatro && <span className={styles.nomeTeatro}>{spettacolo.nome_teatro}</span>}
+            {spettacolo.nome_spettacolo && <span className={styles.nomeSpettacolo}>{spettacolo.nome_spettacolo}</span>}
+            {!(spettacolo.nome_teatro || spettacolo.nome_spettacolo) && 'Prenotazione posti – Teatro'}
+          </h1>
+          {(spettacolo.data_ora_evento || spettacolo.nome_teatro || spettacolo.nome_spettacolo) && (
+            <p className={styles.dataOra}>
+              {spettacolo.data_ora_evento && formatDataOra(spettacolo.data_ora_evento)}
+            </p>
+          )}
+        </div>
         <button
           type="button"
           className={styles.adminBtn}
@@ -99,6 +126,17 @@ function App() {
             posti={posti}
             selectedIds={selectedIds}
             onSelectionChange={handleSelectionChange}
+            gruppiFile={spettacolo.gruppi_file}
+          />
+        </div>
+        <div className={styles.formColumn}>
+          <BookingForm
+            posti={posti}
+            selectedIds={selectedIds}
+            onSuccess={handleBookingSuccess}
+            onError={setError}
+            disabled={posti.length === 0}
+            sessionId={sessionId}
           />
           {selectedIds.length > 0 && (
             <button
@@ -110,13 +148,6 @@ function App() {
             </button>
           )}
         </div>
-        <BookingForm
-          selectedIds={selectedIds}
-          onSuccess={handleBookingSuccess}
-          onError={setError}
-          disabled={posti.length === 0}
-          sessionId={sessionId}
-        />
       </main>
 
       {showAdmin && (
