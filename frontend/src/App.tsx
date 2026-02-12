@@ -18,9 +18,13 @@ function App() {
   const [success, setSuccess] = useState('')
   const [showAdmin, setShowAdmin] = useState(false)
 
-  useEffect(() => {
+  const fetchSpettacolo = useCallback(() => {
     getSpettacolo().then(setSpettacolo)
   }, [])
+
+  useEffect(() => {
+    fetchSpettacolo()
+  }, [fetchSpettacolo])
 
   const fetchPosti = useCallback(async () => {
     try {
@@ -152,7 +156,10 @@ function App() {
 
       {showAdmin && (
         <AdminPanel
-          onClose={() => setShowAdmin(false)}
+          onClose={() => {
+            setShowAdmin(false)
+            fetchSpettacolo()
+          }}
           onFileChange={fetchPosti}
         />
       )}
