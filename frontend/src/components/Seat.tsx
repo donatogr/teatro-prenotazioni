@@ -7,6 +7,10 @@ interface SeatProps {
   numero: number
   stato: PostoStato
   onClick: () => void
+  /** Colore per posti occupati (stesso colore = stessa persona) */
+  personColor?: string
+  /** Tooltip per posto occupato (nome prenotatario) */
+  tooltipText?: string
 }
 
 const stateClass: Record<PostoStato, string> = {
@@ -18,28 +22,31 @@ const stateClass: Record<PostoStato, string> = {
   bloccato_da_me: styles.selezionato,
 }
 
-export function Seat({ id, fila, numero, stato, onClick }: SeatProps) {
+export function Seat({ id, fila, numero, stato, onClick, personColor, tooltipText }: SeatProps) {
   const clickable =
     stato === 'disponibile' || stato === 'selezionato' || stato === 'bloccato_da_me'
   const label = `${fila}${numero}`
+  const title =
+    tooltipText != null
+      ? tooltipText
+      : stato === 'disponibile'
+        ? 'Clicca per selezionare'
+        : stato === 'selezionato' || stato === 'bloccato_da_me'
+          ? 'Clicca per deselezionare'
+          : stato === 'occupato'
+            ? 'Occupato'
+            : stato === 'bloccato'
+              ? 'Bloccato da altro utente'
+              : 'Non disponibile'
 
   return (
     <button
       type="button"
       className={`${styles.seat} ${stateClass[stato] ?? styles.nonDisponibile}`}
+      style={stato === 'occupato' && personColor ? { backgroundColor: personColor, borderColor: personColor } : undefined}
       onClick={clickable ? onClick : undefined}
       disabled={!clickable}
-      title={
-        stato === 'disponibile'
-          ? 'Clicca per selezionare'
-          : stato === 'selezionato' || stato === 'bloccato_da_me'
-            ? 'Clicca per deselezionare'
-            : stato === 'occupato'
-              ? 'Occupato'
-              : stato === 'bloccato'
-                ? 'Bloccato da altro utente'
-                : 'Non disponibile'
-      }
+      title={title}
       aria-label={`Posto ${label}, ${stato}`}
     >
       {numero}

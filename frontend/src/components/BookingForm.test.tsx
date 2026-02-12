@@ -1,0 +1,93 @@
+import { describe, it, expect, vi, beforeEach } from 'vitest'
+import { render, screen } from '@testing-library/react'
+import userEvent from '@testing-library/user-event'
+import { BookingForm } from './BookingForm'
+
+describe('BookingForm', () => {
+  const onSuccess = vi.fn()
+  const onError = vi.fn()
+
+  beforeEach(() => {
+    onSuccess.mockClear()
+    onError.mockClear()
+  })
+
+  it('mostra il form con nome, email e pulsante', () => {
+    render(
+      <BookingForm selectedIds={[1]} onSuccess={onSuccess} onError={onError} />
+    )
+    expect(screen.getByLabelText(/nome/i)).toBeInTheDocument()
+    expect(screen.getByLabelText(/email/i)).toBeInTheDocument()
+    expect(screen.getByRole('button', { name: /conferma prenotazione/i })).toBeInTheDocument()
+  })
+
+  it('chiama onError se nome vuoto', async () => {
+    const user = userEvent.setup()
+    render(
+      <BookingForm selectedIds={[1]} onSuccess={onSuccess} onError={onError} />
+    )
+    await user.type(screen.getByLabelText(/email/i), 'test@test.it')
+    await user.click(screen.getByRole('button', { name: /conferma/i }))
+    expect(onError).toHaveBeenCalledWith('Inserisci il nome')
+    expect(onSuccess).not.toHaveBeenCalled()
+  })
+
+  it('chiama onError se email vuota', async () => {
+    const user = userEvent.setup()
+    render(
+      <BookingForm selectedIds={[1]} onSuccess={onSuccess} onError={onError} />
+    )
+    await user.type(screen.getByLabelText(/nome/i), 'Mario')
+    await user.click(screen.getByRole('button', { name: /conferma/i }))
+    expect(onError).toHaveBeenCalledWith("Inserisci l'email")
+  })
+
+  it('chiama onError se email non valida', async () => {
+    const user = userEvent.setup()
+    render(
+      <BookingForm selectedIds={[1]} onSuccess={onSuccess} onError={onError} />
+    )
+    await user.type(screen.getByLabelText(/nome/i), 'Mario')
+    await user.type(screen.getByLabelText(/email/i), 'non-email')
+    await user.click(screen.getByRole('button', { name: /conferma/i }))
+    expect(onError).toHaveBeenCalledWith('Email non valida')
+  })
+
+  it('chiama onError se nessun posto selezionato', async () => {
+    render(
+      <BookingForm selectedIds={[]} onSuccess={onSuccess} onError={onError} />
+    )
+    await userEvent.type(screen.getByLabelText(/nome/i), 'Mario')
+    await userEvent.type(screen.getByLabelText(/email/i), 'mario@test.it')
+    const btn = screen.getByRole('button', { name: /conferma/i })
+    expect(btn).toBeDisabled()
+  })
+
+  it('chiama creaPrenotazione e onSuccess al submit con dati validi', async () => {
+    const user = userEvent.setup()
+    const mockFetch = vi.fn().mockResolvedValue({ ok: true, json: () => Promise.resolve({ prenotazioni: [] }) })
+    vi.stubGlobal('fetch', mockFetch)
+
+    render(
+      <BookingForm selectedIds={[1]} onSuccess={onSuccess} onError={onError} />
+    )
+    await user.type(screen.getByLabelText(/nome/i), 'Mario Rossi')
+    await user.type(screen.getByLabelText(/email/i), 'mario@test.it')
+    await user.click(screen.getByRole('button', { name: /conferma/i }))
+
+    await vi.waitFor(() => {
+      expect(mockFetch).toHaveBeenCalledWith(
+        '/api/prenotazioni',
+        expect.objectContaining({
+          method: 'POST',
+          body: expect.stringContaining('Mario Rossi'),
+        })
+      )
+    })
+    await vi.waitFor(() => {
+      expect(onSuccess).toHaveBeenCalled()
+    })
+
+    vi.unstubAllGlobals()
+  })
+})

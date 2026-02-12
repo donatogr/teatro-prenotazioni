@@ -13,6 +13,24 @@ export interface Posto {
   disponibile: boolean;
   riservato_staff: boolean;
   stato: 'disponibile' | 'occupato' | 'non_disponibile' | 'bloccato' | 'bloccato_da_me';
+  /** Presente quando stato === 'occupato' (per colore per persona) */
+  prenotazione_nome?: string;
+  prenotazione_email?: string;
+}
+
+export interface ExportBySeat {
+  fila: string;
+  numero: number;
+  posto: string;
+  nome: string;
+  email: string;
+}
+
+export interface ExportByPerson {
+  nome: string;
+  email: string;
+  count: number;
+  posti: string[];
 }
 
 export interface Prenotazione {

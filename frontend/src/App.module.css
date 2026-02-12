@@ -57,3 +57,24 @@
   gap: 2rem;
   align-items: flex-start;
 }
+
+.mapColumn {
+  display: flex;
+  flex-direction: column;
+  gap: 0.75rem;
+}
+
+.pulisciBtn {
+  padding: 0.5rem 1rem;
+  border-radius: 8px;
+  border: 1px solid rgba(255, 255, 255, 0.35);
+  background: rgba(255, 255, 255, 0.08);
+  color: rgba(255, 255, 255, 0.95);
+  cursor: pointer;
+  font-size: 0.9rem;
+  align-self: flex-start;
+}
+
+.pulisciBtn:hover {
+  background: rgba(255, 255, 255, 0.15);
+}

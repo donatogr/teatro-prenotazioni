@@ -94,11 +94,22 @@ function App() {
       {success && <div className={styles.messageSuccess}>{success}</div>}
 
       <main className={styles.main}>
-        <TeatroMap
-          posti={posti}
-          selectedIds={selectedIds}
-          onSelectionChange={handleSelectionChange}
-        />
+        <div className={styles.mapColumn}>
+          <TeatroMap
+            posti={posti}
+            selectedIds={selectedIds}
+            onSelectionChange={handleSelectionChange}
+          />
+          {selectedIds.length > 0 && (
+            <button
+              type="button"
+              className={styles.pulisciBtn}
+              onClick={() => handleSelectionChange([])}
+            >
+              Pulisci selezione
+            </button>
+          )}
+        </div>
         <BookingForm
           selectedIds={selectedIds}
           onSuccess={handleBookingSuccess}

@@ -1,7 +1,25 @@
-import { useCallback } from 'react'
+import { useCallback, useMemo } from 'react'
 import type { Posto } from '../types'
 import { Seat } from './Seat'
 import styles from './TeatroMap.module.css'
+
+const PERSON_COLORS = [
+  '#e11d48', '#2563eb', '#059669', '#d97706', '#7c3aed',
+  '#dc2626', '#0284c7', '#16a34a', '#ca8a04', '#9333ea',
+]
+
+function hashPerson(nome: string, email: string): number {
+  let h = 0
+  const s = nome + '\0' + email
+  for (let i = 0; i < s.length; i++) h = (h << 5) - h + s.charCodeAt(i)
+  return Math.abs(h)
+}
+
+function getPersonColor(nome?: string, email?: string): string | undefined {
+  if (nome == null && email == null) return undefined
+  const h = hashPerson(nome ?? '', email ?? '')
+  return PERSON_COLORS[h % PERSON_COLORS.length]
+}
 
 interface TeatroMapProps {
   posti: Posto[]
@@ -34,6 +52,17 @@ export function TeatroMap({
 
   const file = Object.keys(byFila).sort()
 
+  const personColorMap = useMemo(() => {
+    const m = new Map<string, string>()
+    posti.forEach((p) => {
+      if (p.stato === 'occupato' && (p.prenotazione_nome != null || p.prenotazione_email != null)) {
+        const key = `${p.prenotazione_nome ?? ''}\0${p.prenotazione_email ?? ''}`
+        if (!m.has(key)) m.set(key, getPersonColor(p.prenotazione_nome, p.prenotazione_email)!)
+      }
+    })
+    return m
+  }, [posti])
+
   return (
     <div className={styles.wrapper}>
       <div
@@ -57,6 +86,10 @@ export function TeatroMap({
                       posto.stato === 'bloccato_da_me'
                         ? 'selezionato'
                         : posto.stato
+                    const personKey =
+                      posto.stato === 'occupato'
+                        ? `${posto.prenotazione_nome ?? ''}\0${posto.prenotazione_email ?? ''}`
+                        : ''
                     return (
                       <Seat
                         key={posto.id}
@@ -65,6 +98,7 @@ export function TeatroMap({
                         numero={posto.numero}
                         stato={displayStato}
                         onClick={() => handleSeatClick(posto)}
+                        personColor={personKey ? personColorMap.get(personKey) : undefined}
                       />
                     )
                   })}

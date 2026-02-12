@@ -37,14 +37,21 @@ def _posto_stato(posto, session_id=None):
     return 'disponibile'
 
 def _serialize_posto(posto, session_id=None):
-    return {
+    stato = _posto_stato(posto, session_id)
+    out = {
         'id': posto.id,
         'fila': posto.fila,
         'numero': posto.numero,
         'disponibile': posto.disponibile,
         'riservato_staff': posto.riservato_staff,
-        'stato': _posto_stato(posto, session_id)
+        'stato': stato
     }
+    if stato == 'occupato':
+        pren = Prenotazione.query.filter_by(posto_id=posto.id, stato='confermata').first()
+        if pren:
+            out['prenotazione_nome'] = pren.nome
+            out['prenotazione_email'] = pren.email
+    return out
 
 @api_bp.route('/posti', methods=['GET'])
 def get_posti():
@@ -133,6 +140,63 @@ def admin_list_file():
     riservate = db.session.query(Posto.fila).filter_by(riservato_staff=True).distinct().all()
     riservate_list = [r[0] for r in riservate]
     return jsonify({'file': file_list, 'riservate': riservate_list})
+
+
+def _admin_auth():
+    password = request.headers.get('X-Admin-Password') or (request.get_json() or {}).get('password') or request.args.get('password')
+    if password != current_app.config.get('ADMIN_PASSWORD'):
+        return None
+    return True
+
+
+@api_bp.route('/admin/posti', methods=['GET'])
+def admin_get_posti():
+    if not _admin_auth():
+        return jsonify({'error': 'Non autorizzato'}), 401
+    _pulisci_blocchi_scaduti()
+    posti = Posto.query.order_by(Posto.fila, Posto.numero).all()
+    return jsonify([_serialize_posto(p, None) for p in posti])
+
+
+@api_bp.route('/admin/posti/<int:posto_id>', methods=['PUT'])
+def admin_set_posto(posto_id):
+    if not _admin_auth():
+        return jsonify({'error': 'Non autorizzato'}), 401
+    posto = Posto.query.get(posto_id)
+    if not posto:
+        return jsonify({'error': 'Posto non trovato'}), 404
+    if _posto_occupato(posto):
+        return jsonify({'error': 'Non si può modificare un posto già prenotato'}), 400
+    data = request.get_json() or {}
+    riservato = data.get('riservato_staff', True)
+    posto.riservato_staff = bool(riservato)
+    db.session.commit()
+    return jsonify({'ok': True, 'riservato_staff': posto.riservato_staff})
+
+
+@api_bp.route('/admin/export', methods=['GET'])
+def admin_export():
+    if not _admin_auth():
+        return jsonify({'error': 'Non autorizzato'}), 401
+    pren_list = Prenotazione.query.filter_by(stato='confermata').order_by(Prenotazione.nome, Prenotazione.email).all()
+    by_seat = []
+    person_map = {}  # (nome, email) -> { count, posti: [] }
+    for p in pren_list:
+        posto = Posto.query.get(p.posto_id)
+        if not posto:
+            continue
+        fila, numero = posto.fila, posto.numero
+        label = f'{fila}{numero}'
+        by_seat.append({'fila': fila, 'numero': numero, 'posto': label, 'nome': p.nome, 'email': p.email})
+        key = (p.nome, p.email)
+        if key not in person_map:
+            person_map[key] = {'nome': p.nome, 'email': p.email, 'count': 0, 'posti': []}
+        person_map[key]['count'] += 1
+        person_map[key]['posti'].append(label)
+    by_person = [{'nome': v['nome'], 'email': v['email'], 'count': v['count'], 'posti': v['posti']} for v in person_map.values()]
+    by_person.sort(key=lambda x: (-x['count'], x['nome'], x['email']))
+    by_seat.sort(key=lambda x: (x['fila'], x['numero']))
+    return jsonify({'bySeat': by_seat, 'byPerson': by_person})
 
 
 # --- Blocco temporaneo posti ---

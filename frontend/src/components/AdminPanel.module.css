@@ -92,3 +92,189 @@
 .closeBtn:hover {
   background: #64748b;
 }
+
+/* Admin panel espanso */
+.panelAdmin {
+  background: #1e293b;
+  padding: 1.5rem;
+  border-radius: 12px;
+  max-width: 900px;
+  width: 95%;
+  max-height: 90vh;
+  overflow-y: auto;
+  border: 1px solid rgba(255, 255, 255, 0.1);
+}
+
+.panelAdmin h2 {
+  margin: 0 0 1rem 0;
+  font-size: 1.25rem;
+}
+
+.tabs {
+  display: flex;
+  gap: 0.5rem;
+  margin-bottom: 1rem;
+}
+
+.tab,
+.tabActive {
+  padding: 0.5rem 1rem;
+  border-radius: 8px;
+  border: 1px solid rgba(255, 255, 255, 0.2);
+  background: rgba(0, 0, 0, 0.2);
+  color: rgba(255, 255, 255, 0.9);
+  cursor: pointer;
+  font-size: 0.9rem;
+}
+
+.tabActive {
+  background: #3b82f6;
+  border-color: #3b82f6;
+}
+
+.tab:hover {
+  background: rgba(255, 255, 255, 0.1);
+}
+
+.hint {
+  font-size: 0.85rem;
+  color: rgba(255, 255, 255, 0.8);
+  margin: 0 0 1rem 0;
+}
+
+.adminGridWrap {
+  margin: 1rem 0;
+  overflow-x: auto;
+}
+
+.adminGrid {
+  display: flex;
+  flex-direction: column;
+  gap: 0.35rem;
+}
+
+.adminRow {
+  display: flex;
+  align-items: center;
+  gap: 0.5rem;
+}
+
+.filaLabelBtn {
+  min-width: 28px;
+  height: 28px;
+  padding: 0;
+  border-radius: 6px;
+  border: 1px solid rgba(255, 255, 255, 0.3);
+  background: rgba(255, 255, 255, 0.1);
+  color: #fff;
+  font-weight: 600;
+  cursor: pointer;
+  font-size: 0.85rem;
+}
+
+.filaLabelBtn:hover {
+  background: rgba(255, 255, 255, 0.2);
+}
+
+.adminSeats {
+  display: flex;
+  gap: 4px;
+  flex-wrap: wrap;
+}
+
+.adminSeats button {
+  width: 26px;
+  height: 26px;
+  padding: 0;
+  border-radius: 4px;
+  border: 1px solid rgba(255, 255, 255, 0.3);
+  font-size: 11px;
+  font-weight: 600;
+  cursor: pointer;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+}
+
+.seatDisponibile {
+  background: #22c55e;
+  color: #fff;
+}
+
+.seatDisponibile:hover {
+  filter: brightness(1.1);
+}
+
+.seatRiservato {
+  background: #4b5563;
+  color: #9ca3af;
+}
+
+.seatRiservato:hover {
+  filter: brightness(1.2);
+}
+
+.seatOccupato {
+  background: #ef4444;
+  color: #fff;
+  cursor: default;
+}
+
+.exportLoadBtn {
+  padding: 0.5rem 1rem;
+  border-radius: 8px;
+  border: none;
+  background: #059669;
+  color: #fff;
+  cursor: pointer;
+  margin-bottom: 1rem;
+}
+
+.exportLoadBtn:hover:not(:disabled) {
+  background: #047857;
+}
+
+.exportLoadBtn:disabled {
+  opacity: 0.7;
+  cursor: not-allowed;
+}
+
+.exportSection {
+  margin: 1rem 0;
+}
+
+.exportSection h3 {
+  font-size: 1rem;
+  margin: 0 0 0.5rem 0;
+}
+
+.exportTable {
+  width: 100%;
+  border-collapse: collapse;
+  font-size: 0.85rem;
+}
+
+.exportTable th,
+.exportTable td {
+  border: 1px solid rgba(255, 255, 255, 0.2);
+  padding: 0.4rem 0.6rem;
+  text-align: left;
+}
+
+.exportTable th {
+  background: rgba(0, 0, 0, 0.3);
+}
+
+.pdfBtn {
+  padding: 0.5rem 1rem;
+  border-radius: 8px;
+  border: none;
+  background: #dc2626;
+  color: #fff;
+  cursor: pointer;
+  margin-top: 0.5rem;
+}
+
+.pdfBtn:hover {
+  background: #b91c1c;
+}

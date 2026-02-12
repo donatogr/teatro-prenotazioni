@@ -91,3 +91,37 @@ export async function setFilaRiservata(
   if (!r.ok) throw new Error(data.error || 'Errore');
   return data;
 }
+
+export async function getAdminPosti(password: string): Promise<import('../types').Posto[]> {
+  const r = await fetch(`${API_BASE}/admin/posti`, {
+    headers: { 'X-Admin-Password': password },
+  });
+  if (!r.ok) throw new Error('Non autorizzato');
+  return r.json();
+}
+
+export async function setPostoRiservato(
+  postoId: number,
+  riservato: boolean,
+  password: string
+): Promise<{ ok: boolean; riservato_staff: boolean }> {
+  const r = await fetch(`${API_BASE}/admin/posti/${postoId}`, {
+    method: 'PUT',
+    headers: { 'Content-Type': 'application/json', 'X-Admin-Password': password },
+    body: JSON.stringify({ riservato_staff: riservato }),
+  });
+  const data = await r.json().catch(() => ({}));
+  if (!r.ok) throw new Error(data.error || 'Errore');
+  return data;
+}
+
+export async function getExportData(password: string): Promise<{
+  bySeat: import('../types').ExportBySeat[];
+  byPerson: import('../types').ExportByPerson[];
+}> {
+  const r = await fetch(`${API_BASE}/admin/export`, {
+    headers: { 'X-Admin-Password': password },
+  });
+  if (!r.ok) throw new Error('Non autorizzato');
+  return r.json();
+}

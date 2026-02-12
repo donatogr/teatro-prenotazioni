@@ -8,7 +8,7 @@ def create_app():
     app = Flask(__name__)
     app.config.from_object('config.Config')
     db.init_app(app)
-    CORS(app, origins=['http://localhost:5173', 'http://127.0.0.1:5173'], supports_credentials=True)
+    CORS(app, origins=app.config.get('CORS_ORIGINS', ['http://localhost:5173', 'http://127.0.0.1:5173']), supports_credentials=True)
 
     with app.app_context():
         import models  # register models with db
@@ -29,3 +29,7 @@ def create_app():
         app.register_blueprint(api_bp, url_prefix='/api')
 
     return app
+
+
+# Per Gunicorn in produzione
+application = create_app()
