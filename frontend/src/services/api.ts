@@ -125,3 +125,35 @@ export async function getExportData(password: string): Promise<{
   if (!r.ok) throw new Error('Non autorizzato');
   return r.json();
 }
+
+export async function getImpostazioni(password: string): Promise<import('../types').Impostazioni> {
+  const r = await fetch(`${API_BASE}/admin/impostazioni`, {
+    headers: { 'X-Admin-Password': password },
+  });
+  if (!r.ok) throw new Error('Non autorizzato');
+  return r.json();
+}
+
+export async function putImpostazioni(
+  password: string,
+  data: Partial<import('../types').Impostazioni>
+): Promise<{ ok: boolean }> {
+  const r = await fetch(`${API_BASE}/admin/impostazioni`, {
+    method: 'PUT',
+    headers: { 'Content-Type': 'application/json', 'X-Admin-Password': password },
+    body: JSON.stringify(data),
+  });
+  const body = await r.json().catch(() => ({}));
+  if (!r.ok) throw new Error(body.error || 'Errore');
+  return body;
+}
+
+export async function generaPosti(password: string): Promise<{ ok: boolean; creati: number }> {
+  const r = await fetch(`${API_BASE}/admin/impostazioni/genera-posti`, {
+    method: 'POST',
+    headers: { 'X-Admin-Password': password },
+  });
+  const body = await r.json().catch(() => ({}));
+  if (!r.ok) throw new Error(body.error || 'Errore');
+  return body;
+}

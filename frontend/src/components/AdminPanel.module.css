@@ -159,6 +159,13 @@
   gap: 0.5rem;
 }
 
+.filaLabel {
+  min-width: 28px;
+  font-weight: 600;
+  color: rgba(255, 255, 255, 0.9);
+  font-size: 0.9rem;
+}
+
 .filaLabelBtn {
   min-width: 28px;
   height: 28px;
@@ -277,4 +284,133 @@
 
 .pdfBtn:hover {
   background: #b91c1c;
+}
+
+.success {
+  color: #86efac;
+  font-size: 0.9rem;
+  margin: 0 0 0.75rem 0;
+}
+
+.formSection {
+  margin: 1rem 0;
+}
+
+.formSection .field input[type="text"],
+.formSection .field input[type="number"],
+.formSection .field input[type="datetime-local"] {
+  width: 100%;
+  max-width: 400px;
+  padding: 0.5rem 0.75rem;
+  border-radius: 8px;
+  border: 1px solid rgba(255, 255, 255, 0.2);
+  background: rgba(0, 0, 0, 0.3);
+  color: #fff;
+}
+
+.primaryBtn {
+  padding: 0.5rem 1rem;
+  border-radius: 8px;
+  border: none;
+  background: #3b82f6;
+  color: #fff;
+  cursor: pointer;
+  margin-right: 0.5rem;
+}
+
+.primaryBtn:hover:not(:disabled) {
+  background: #2563eb;
+}
+
+.secondaryBtn {
+  padding: 0.4rem 0.75rem;
+  border-radius: 6px;
+  border: 1px solid rgba(255, 255, 255, 0.3);
+  background: rgba(255, 255, 255, 0.1);
+  color: #fff;
+  cursor: pointer;
+  font-size: 0.85rem;
+}
+
+.dangerBtn {
+  padding: 0.5rem 1rem;
+  border-radius: 8px;
+  border: none;
+  background: #b91c1c;
+  color: #fff;
+  cursor: pointer;
+}
+
+.dangerBtn:hover {
+  background: #991b1b;
+}
+
+.buttonRow {
+  display: flex;
+  gap: 0.5rem;
+  flex-wrap: wrap;
+  margin-top: 0.75rem;
+}
+
+.gruppoRow {
+  display: flex;
+  gap: 0.5rem;
+  align-items: center;
+  margin-bottom: 0.5rem;
+}
+
+.gruppoLettere {
+  width: 80px;
+  padding: 0.4rem;
+  border-radius: 6px;
+  border: 1px solid rgba(255, 255, 255, 0.2);
+  background: rgba(0, 0, 0, 0.3);
+  color: #fff;
+}
+
+.gruppoNome {
+  flex: 1;
+  max-width: 200px;
+  padding: 0.4rem;
+  border-radius: 6px;
+  border: 1px solid rgba(255, 255, 255, 0.2);
+  background: rgba(0, 0, 0, 0.3);
+  color: #fff;
+}
+
+.smallBtn {
+  padding: 0.25rem 0.5rem;
+  font-size: 0.8rem;
+  border-radius: 4px;
+  border: none;
+  background: #64748b;
+  color: #fff;
+  cursor: pointer;
+}
+
+.printBtn {
+  padding: 0.5rem 1rem;
+  border-radius: 8px;
+  border: none;
+  background: #0ea5e9;
+  color: #fff;
+  cursor: pointer;
+}
+
+.printBtn:hover {
+  background: #0284c7;
+}
+
+.adminSeats span {
+  width: 26px;
+  height: 26px;
+  padding: 0;
+  border-radius: 4px;
+  border: 1px solid rgba(255, 255, 255, 0.3);
+  font-size: 11px;
+  font-weight: 600;
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  pointer-events: none;
 }

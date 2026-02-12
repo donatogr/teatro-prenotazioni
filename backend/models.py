@@ -1,5 +1,28 @@
 from datetime import datetime, timedelta
+import json
 from app import db
+
+class Impostazioni(db.Model):
+    """Configurazione spettacolo e teatro (singola riga, id=1)."""
+    __tablename__ = 'impostazioni'
+    id = db.Column(db.Integer, primary_key=True, default=1)
+    nome_teatro = db.Column(db.String(120), default='')
+    indirizzo_teatro = db.Column(db.String(255), default='')
+    nome_spettacolo = db.Column(db.String(120), default='')
+    data_ora_evento = db.Column(db.DateTime, nullable=True)
+    numero_file = db.Column(db.Integer, nullable=True)  # es. 15
+    posti_per_fila = db.Column(db.Integer, nullable=True)  # stesso per tutte le file, es. 10
+    gruppi_file = db.Column(db.Text, default='[]')  # JSON: [{"lettere": "A-G", "nome": "Platea"}, ...]
+
+    def get_gruppi_file(self):
+        try:
+            return json.loads(self.gruppi_file or '[]')
+        except Exception:
+            return []
+
+    def set_gruppi_file(self, value):
+        self.gruppi_file = json.dumps(value) if value is not None else '[]'
+
 
 class Posto(db.Model):
     __tablename__ = 'posti'

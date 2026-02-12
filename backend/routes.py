@@ -2,7 +2,7 @@ from datetime import datetime, timedelta
 from flask import Blueprint, request, jsonify, current_app
 from sqlalchemy import text
 from app import db
-from models import Posto, Prenotazione, Blocco
+from models import Posto, Prenotazione, Blocco, Impostazioni
 
 api_bp = Blueprint('api', __name__)
 
@@ -197,6 +197,95 @@ def admin_export():
     by_person.sort(key=lambda x: (-x['count'], x['nome'], x['email']))
     by_seat.sort(key=lambda x: (x['fila'], x['numero']))
     return jsonify({'bySeat': by_seat, 'byPerson': by_person})
+
+
+@api_bp.route('/admin/impostazioni', methods=['GET'])
+def admin_get_impostazioni():
+    if not _admin_auth():
+        return jsonify({'error': 'Non autorizzato'}), 401
+    row = Impostazioni.query.get(1)
+    if not row:
+        return jsonify({
+            'nome_teatro': '', 'indirizzo_teatro': '', 'nome_spettacolo': '',
+            'data_ora_evento': None, 'numero_file': None, 'posti_per_fila': None,
+            'gruppi_file': []
+        })
+    return jsonify({
+        'nome_teatro': row.nome_teatro or '',
+        'indirizzo_teatro': row.indirizzo_teatro or '',
+        'nome_spettacolo': row.nome_spettacolo or '',
+        'data_ora_evento': row.data_ora_evento.isoformat() if row.data_ora_evento else None,
+        'numero_file': row.numero_file,
+        'posti_per_fila': row.posti_per_fila,
+        'gruppi_file': row.get_gruppi_file(),
+    })
+
+
+@api_bp.route('/admin/impostazioni', methods=['PUT'])
+def admin_put_impostazioni():
+    if not _admin_auth():
+        return jsonify({'error': 'Non autorizzato'}), 401
+    data = request.get_json() or {}
+    row = Impostazioni.query.get(1)
+    if not row:
+        row = Impostazioni(id=1)
+        db.session.add(row)
+    row.nome_teatro = (data.get('nome_teatro') or '').strip()[:120]
+    row.indirizzo_teatro = (data.get('indirizzo_teatro') or '').strip()[:255]
+    row.nome_spettacolo = (data.get('nome_spettacolo') or '').strip()[:120]
+    da = data.get('data_ora_evento')
+    if da and isinstance(da, str):
+        try:
+            s = da.strip()
+            if 'T' in s:
+                date_part, time_part = s.split('T', 1)
+                y, m, d = map(int, date_part.split('-'))
+                h = mnt = 0
+                if time_part:
+                    t = time_part.replace('Z', '').replace('+00:00', '').strip()
+                    parts = t.split(':')
+                    h = int(parts[0]) if len(parts) > 0 else 0
+                    mnt = int(parts[1]) if len(parts) > 1 else 0
+                row.data_ora_evento = datetime(y, m, d, h, mnt)
+            else:
+                row.data_ora_evento = None
+        except (ValueError, TypeError):
+            row.data_ora_evento = None
+    else:
+        row.data_ora_evento = None
+    row.numero_file = data.get('numero_file') if data.get('numero_file') is not None else None
+    if row.numero_file is not None and (row.numero_file < 1 or row.numero_file > 50):
+        row.numero_file = None
+    row.posti_per_fila = data.get('posti_per_fila') if data.get('posti_per_fila') is not None else None
+    if row.posti_per_fila is not None and (row.posti_per_fila < 1 or row.posti_per_fila > 50):
+        row.posti_per_fila = None
+    gruppi = data.get('gruppi_file')
+    if isinstance(gruppi, list):
+        row.set_gruppi_file([g for g in gruppi if isinstance(g, dict) and g.get('lettere') and g.get('nome')])
+    db.session.commit()
+    return jsonify({'ok': True})
+
+
+@api_bp.route('/admin/impostazioni/genera-posti', methods=['POST'])
+def admin_genera_posti():
+    if not _admin_auth():
+        return jsonify({'error': 'Non autorizzato'}), 401
+    row = Impostazioni.query.get(1)
+    if not row or row.numero_file is None or row.numero_file < 1 or row.posti_per_fila is None or row.posti_per_fila < 1:
+        return jsonify({'error': 'Configura prima numero di file e posti per fila'}), 400
+    n_prenotazioni = Prenotazione.query.filter_by(stato='confermata').count()
+    if n_prenotazioni > 0:
+        return jsonify({'error': 'Impossibile rigenerare: ci sono prenotazioni confermate. Elimina le prenotazioni prima.'}), 400
+    Blocco.query.delete()
+    Posto.query.delete()
+    db.session.commit()
+    import string
+    letters = string.ascii_uppercase[: row.numero_file]
+    for i, letter in enumerate(letters):
+        for n in range(1, row.posti_per_fila + 1):
+            db.session.add(Posto(fila=letter, numero=n, disponibile=True, riservato_staff=False))
+    db.session.commit()
+    return jsonify({'ok': True, 'creati': row.numero_file * row.posti_per_fila})
 
 
 # --- Blocco temporaneo posti ---

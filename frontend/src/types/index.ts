@@ -41,3 +41,18 @@ export interface Prenotazione {
   timestamp: string | null;
   stato: string;
 }
+
+export interface GruppoFile {
+  lettere: string;
+  nome: string;
+}
+
+export interface Impostazioni {
+  nome_teatro: string;
+  indirizzo_teatro: string;
+  nome_spettacolo: string;
+  data_ora_evento: string | null;
+  numero_file: number | null;
+  posti_per_fila: number | null;
+  gruppi_file: GruppoFile[];
+}
