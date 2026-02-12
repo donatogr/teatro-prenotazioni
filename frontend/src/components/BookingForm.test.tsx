@@ -65,7 +65,7 @@ describe('BookingForm', () => {
 
   it('chiama creaPrenotazione e onSuccess al submit con dati validi', async () => {
     const user = userEvent.setup()
-    const mockFetch = vi.fn().mockResolvedValue({ ok: true, json: () => Promise.resolve({ prenotazioni: [] }) })
+    const mockFetch = vi.fn().mockResolvedValue({ ok: true, json: () => Promise.resolve({ prenotazioni: [], codice: '123456', codice_nuovo: true }) })
     vi.stubGlobal('fetch', mockFetch)
 
     render(

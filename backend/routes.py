@@ -1,8 +1,9 @@
+import random
 from datetime import datetime, timedelta
 from flask import Blueprint, request, jsonify, current_app
 from sqlalchemy import text
 from app import db
-from models import Posto, Prenotazione, Blocco, Impostazioni
+from models import Posto, Prenotazione, Blocco, Impostazioni, CodicePrenotazione
 
 api_bp = Blueprint('api', __name__)
 
@@ -110,15 +111,35 @@ def crea_prenotazione():
             if blocco:
                 db.session.rollback()
                 return jsonify({'error': f'Posto {posto.fila}{posto.numero} non più disponibile (blocco scaduto o occupato). Ricarica e riprova.'}), 400
+        email_lower = email.lower()
         created = []
         for pid in posto_ids:
-            pren = Prenotazione(posto_id=pid, nome=nome, email=email, stato='confermata')
+            pren = Prenotazione(posto_id=pid, nome=nome, email=email_lower, stato='confermata')
             db.session.add(pren)
             created.append(pren)
         # Rilascia blocchi sui posti prenotati (qualsiasi session_id)
         Blocco.query.filter(Blocco.posto_id.in_(posto_ids)).delete(synchronize_session=False)
+        # Assegna o recupera codice prenotazione (6 cifre) per questa email
+        row = CodicePrenotazione.query.filter_by(email=email_lower).first()
+        if row:
+            codice = row.codice
+            codice_nuovo = False
+        else:
+            for _ in range(10):
+                codice = str(random.randint(100000, 999999))
+                if CodicePrenotazione.query.filter_by(codice=codice).first() is None:
+                    db.session.add(CodicePrenotazione(email=email_lower, codice=codice))
+                    codice_nuovo = True
+                    break
+            else:
+                db.session.rollback()
+                return jsonify({'error': 'Impossibile generare codice prenotazione. Riprova.'}), 500
         db.session.commit()
-        return jsonify({'prenotazioni': [p.to_dict() for p in created]})
+        return jsonify({
+            'prenotazioni': [p.to_dict() for p in created],
+            'codice': codice,
+            'codice_nuovo': codice_nuovo,
+        })
     except Exception as e:
         db.session.rollback()
         return jsonify({'error': str(e)}), 500
@@ -127,6 +148,32 @@ def crea_prenotazione():
 def list_prenotazioni():
     pren = Prenotazione.query.filter_by(stato='confermata').order_by(Prenotazione.timestamp.desc()).all()
     return jsonify([p.to_dict() for p in pren])
+
+
+@api_bp.route('/prenotazioni/recupera', methods=['POST'])
+def recupera_prenotazioni():
+    """Restituisce le prenotazioni confermate per email+codice (codice assegnato alla prima prenotazione)."""
+    data = request.get_json() or {}
+    email = (data.get('email') or '').strip().lower()
+    codice = (data.get('codice') or '').strip()
+    if not email:
+        return jsonify({'error': 'Email richiesta'}), 400
+    if not codice or len(codice) != 6 or not codice.isdigit():
+        return jsonify({'error': 'Codice prenotazione non valido (6 cifre)'}), 400
+    row = CodicePrenotazione.query.filter_by(email=email).first()
+    if not row or row.codice != codice:
+        return jsonify({'error': 'Nessuna prenotazione trovata per questa email e codice.'}), 404
+    pren_list = Prenotazione.query.filter_by(email=row.email, stato='confermata').order_by(Prenotazione.timestamp.desc()).all()
+    out = []
+    for p in pren_list:
+        posto = Posto.query.get(p.posto_id)
+        out.append({
+            **p.to_dict(),
+            'posto_fila': posto.fila if posto else '',
+            'posto_numero': posto.numero if posto else 0,
+        })
+    return jsonify({'prenotazioni': out})
+
 
 @api_bp.route('/prenotazioni/<int:pid>', methods=['DELETE'])
 def cancella_prenotazione(pid):

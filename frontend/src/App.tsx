@@ -3,6 +3,7 @@ import type { Posto } from './types'
 import { getPosti, getSpettacolo, bloccaPosti, rinnovaBlocchi, rilascioBlocchi } from './services/api'
 import { TeatroMap } from './components/TeatroMap'
 import { BookingForm } from './components/BookingForm'
+import { RecuperaPrenotazione } from './components/RecuperaPrenotazione'
 import { AdminPanel } from './components/AdminPanel'
 import styles from './App.module.css'
 
@@ -79,11 +80,20 @@ function App() {
     return () => clearInterval(t)
   }, [sessionId, selectedIds])
 
-  const handleBookingSuccess = useCallback(() => {
-    setSuccess('Prenotazione confermata. A breve riceverai una email di riepilogo.')
+  const handleBookingSuccess = useCallback((codice?: string, codiceNuovo?: boolean) => {
     setSelectedIds([])
     fetchPosti()
-    setTimeout(() => setSuccess(''), 5000)
+    if (codice) {
+      setSuccess(
+        codiceNuovo
+          ? `Prenotazione confermata. Il tuo codice prenotazione è: ${codice}. Conservalo per recuperare la prenotazione.`
+          : `Prenotazione confermata. Il tuo codice prenotazione è: ${codice}.`
+      )
+      setTimeout(() => setSuccess(''), 15000)
+    } else {
+      setSuccess('Prenotazione confermata.')
+      setTimeout(() => setSuccess(''), 5000)
+    }
   }, [fetchPosti])
 
   const formatDataOra = (iso: string | null) => {
@@ -151,6 +161,7 @@ function App() {
               Pulisci selezione
             </button>
           )}
+          <RecuperaPrenotazione />
         </div>
       </main>
 

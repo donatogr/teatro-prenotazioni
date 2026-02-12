@@ -42,6 +42,12 @@ export interface Prenotazione {
   stato: string;
 }
 
+/** Prenotazione con dati posto (per recupero) */
+export interface PrenotazioneConPosto extends Prenotazione {
+  posto_fila: string;
+  posto_numero: number;
+}
+
 export interface GruppoFile {
   lettere: string;
   nome: string;

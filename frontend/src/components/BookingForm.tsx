@@ -8,7 +8,7 @@ const EMAIL_RE = /^[^\s@]+@[^\s@]+\.[^\s@]+$/
 interface BookingFormProps {
   posti: Posto[]
   selectedIds: number[]
-  onSuccess: () => void
+  onSuccess: (codice?: string, codiceNuovo?: boolean) => void
   onError: (msg: string) => void
   disabled?: boolean
   sessionId?: string
@@ -58,10 +58,10 @@ export function BookingForm({
     setLoading(true)
     onError('')
     try {
-      await creaPrenotazione(selectedIds, n, eVal, sessionId)
+      const res = await creaPrenotazione(selectedIds, n, eVal, sessionId)
       setNome('')
       setEmail('')
-      onSuccess()
+      onSuccess(res.codice, res.codice_nuovo)
     } catch (err) {
       onError(err instanceof Error ? err.message : 'Errore prenotazione')
     } finally {

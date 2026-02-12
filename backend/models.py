@@ -50,6 +50,17 @@ class Blocco(db.Model):
         return f'<Posto {self.fila}{self.numero}>'
 
 
+class CodicePrenotazione(db.Model):
+    """Codice 6 cifre univoco per email, assegnato alla prima prenotazione."""
+    __tablename__ = 'codici_prenotazione'
+    id = db.Column(db.Integer, primary_key=True)
+    email = db.Column(db.String(120), nullable=False, unique=True, index=True)
+    codice = db.Column(db.String(6), nullable=False, unique=True)
+
+    def __repr__(self):
+        return f'<CodicePrenotazione email={self.email!r} codice={self.codice!r}>'
+
+
 class Prenotazione(db.Model):
     __tablename__ = 'prenotazioni'
     id = db.Column(db.Integer, primary_key=True)

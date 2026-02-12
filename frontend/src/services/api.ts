@@ -60,7 +60,11 @@ export async function creaPrenotazione(
   nome: string,
   email: string,
   sessionId: string = ''
-): Promise<{ prenotazioni: import('../types').Prenotazione[] }> {
+): Promise<{
+  prenotazioni: import('../types').Prenotazione[];
+  codice: string;
+  codice_nuovo: boolean;
+}> {
   const r = await fetch(`${API_BASE}/prenotazioni`, {
     method: 'POST',
     headers: { 'Content-Type': 'application/json', ...(sessionId ? sessionHeaders(sessionId) : {}) },
@@ -68,6 +72,21 @@ export async function creaPrenotazione(
   });
   const data = await r.json().catch(() => ({}));
   if (!r.ok) throw new Error(data.error || 'Errore prenotazione');
+  return data;
+}
+
+export async function recuperaPrenotazioni(
+  email: string,
+  codice: string
+): Promise<{ prenotazioni: import('../types').PrenotazioneConPosto[] }> {
+  const r = await fetch(`${API_BASE}/prenotazioni/recupera`, {
+    method: 'POST',
+    headers: { 'Content-Type': 'application/json' },
+    body: JSON.stringify({ email: email.trim().toLowerCase(), codice: codice.trim() }),
+  });
+  const data = await r.json().catch(() => ({}));
+  if (r.status === 404) throw new Error(data.error || 'Nessuna prenotazione trovata');
+  if (!r.ok) throw new Error(data.error || 'Errore recupero prenotazione');
   return data;
 }
 
