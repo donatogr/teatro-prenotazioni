@@ -46,9 +46,6 @@ class Blocco(db.Model):
     def __repr__(self):
         return f'<Blocco posto={self.posto_id} session={self.session_id[:8]}... scadenza={self.scadenza}>'
 
-    def __repr__(self):
-        return f'<Posto {self.fila}{self.numero}>'
-
 
 class CodicePrenotazione(db.Model):
     """Codice 6 cifre univoco per email, assegnato alla prima prenotazione."""
