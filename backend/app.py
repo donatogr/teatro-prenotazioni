@@ -23,6 +23,14 @@ def create_app():
                 db.session.commit()
         except Exception:
             db.session.rollback()
+        try:
+            r = db.session.execute(text("PRAGMA table_info(prenotazioni)"))
+            cols = [row[1] for row in r.fetchall()]
+            if 'nome_allieva' not in cols:
+                db.session.execute(text("ALTER TABLE prenotazioni ADD COLUMN nome_allieva VARCHAR(120) DEFAULT ''"))
+                db.session.commit()
+        except Exception:
+            db.session.rollback()
         from seed import init_seats_if_empty
         init_seats_if_empty()
         from routes import api_bp

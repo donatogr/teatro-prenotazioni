@@ -66,6 +66,7 @@ class Prenotazione(db.Model):
     id = db.Column(db.Integer, primary_key=True)
     posto_id = db.Column(db.Integer, db.ForeignKey('posti.id'), nullable=False)
     nome = db.Column(db.String(120), nullable=False)
+    nome_allieva = db.Column(db.String(120), default='', nullable=True)
     email = db.Column(db.String(120), nullable=False)
     timestamp = db.Column(db.DateTime, default=datetime.utcnow)
     stato = db.Column(db.String(20), default='confermata', nullable=False)  # confermata, cancellata
@@ -75,6 +76,7 @@ class Prenotazione(db.Model):
             'id': self.id,
             'posto_id': self.posto_id,
             'nome': self.nome,
+            'nome_allieva': self.nome_allieva or '',
             'email': self.email,
             'timestamp': self.timestamp.isoformat() if self.timestamp else None,
             'stato': self.stato

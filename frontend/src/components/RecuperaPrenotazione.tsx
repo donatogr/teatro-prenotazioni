@@ -108,7 +108,11 @@ export function RecuperaPrenotazione() {
                 {prenotazioni.map((p) => (
                   <article key={p.id} className={styles.card}>
                     <div className={styles.cardPosto}>{p.posto_fila}{p.posto_numero}</div>
-                    <div className={styles.cardDetail}>{p.nome} – {formatData(p.timestamp)}</div>
+                    <div className={styles.cardDetail}>
+                      {p.nome}
+                      {p.nome_allieva && ` – Allieva: ${p.nome_allieva}`}
+                      {' – '}{formatData(p.timestamp)}
+                    </div>
                   </article>
                 ))}
               </div>

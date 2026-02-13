@@ -51,6 +51,7 @@ def _serialize_posto(posto, session_id=None):
         pren = Prenotazione.query.filter_by(posto_id=posto.id, stato='confermata').first()
         if pren:
             out['prenotazione_nome'] = pren.nome
+            out['prenotazione_nome_allieva'] = pren.nome_allieva or ''
             out['prenotazione_email'] = pren.email
     return out
 
@@ -85,6 +86,7 @@ def crea_prenotazione():
     data = request.get_json() or {}
     posto_ids = data.get('posto_ids', [])
     nome = (data.get('nome') or '').strip()
+    nome_allieva = (data.get('nome_allieva') or '').strip()
     email = (data.get('email') or '').strip()
     if not nome or not email:
         return jsonify({'error': 'Nome e email richiesti'}), 400
@@ -114,7 +116,7 @@ def crea_prenotazione():
         email_lower = email.lower()
         created = []
         for pid in posto_ids:
-            pren = Prenotazione(posto_id=pid, nome=nome, email=email_lower, stato='confermata')
+            pren = Prenotazione(posto_id=pid, nome=nome, nome_allieva=nome_allieva or None, email=email_lower, stato='confermata')
             db.session.add(pren)
             created.append(pren)
         # Rilascia blocchi sui posti prenotati (qualsiasi session_id)
@@ -253,13 +255,13 @@ def admin_export():
             continue
         fila, numero = posto.fila, posto.numero
         label = f'{fila}{numero}'
-        by_seat.append({'fila': fila, 'numero': numero, 'posto': label, 'nome': p.nome, 'email': p.email})
+        by_seat.append({'fila': fila, 'numero': numero, 'posto': label, 'nome': p.nome, 'nome_allieva': p.nome_allieva or '', 'email': p.email})
         key = (p.nome, p.email)
         if key not in person_map:
-            person_map[key] = {'nome': p.nome, 'email': p.email, 'count': 0, 'posti': []}
+            person_map[key] = {'nome': p.nome, 'nome_allieva': p.nome_allieva or '', 'email': p.email, 'count': 0, 'posti': []}
         person_map[key]['count'] += 1
         person_map[key]['posti'].append(label)
-    by_person = [{'nome': v['nome'], 'email': v['email'], 'count': v['count'], 'posti': v['posti']} for v in person_map.values()]
+    by_person = [{'nome': v['nome'], 'nome_allieva': v['nome_allieva'], 'email': v['email'], 'count': v['count'], 'posti': v['posti']} for v in person_map.values()]
     by_person.sort(key=lambda x: (-x['count'], x['nome'], x['email']))
     by_seat.sort(key=lambda x: (x['fila'], x['numero']))
     return jsonify({'bySeat': by_seat, 'byPerson': by_person})

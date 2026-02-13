@@ -32,6 +32,7 @@ export function BookingForm({
       .join(', ')
   }, [posti, selectedIds])
   const [nome, setNome] = useState('')
+  const [nomeAllieva, setNomeAllieva] = useState('')
   const [email, setEmail] = useState('')
   const [loading, setLoading] = useState(false)
 
@@ -58,8 +59,9 @@ export function BookingForm({
     setLoading(true)
     onError('')
     try {
-      const res = await creaPrenotazione(selectedIds, n, eVal, sessionId)
+      const res = await creaPrenotazione(selectedIds, n, nomeAllievaVal, eVal, sessionId)
       setNome('')
+      setNomeAllieva('')
       setEmail('')
       onSuccess(res.codice, res.codice_nuovo)
     } catch (err) {
@@ -84,6 +86,17 @@ export function BookingForm({
         />
       </div>
       <div className={styles.field}>
+        <label htmlFor="nome-allieva">Nome allieva</label>
+        <input
+          id="nome-allieva"
+          type="text"
+          value={nomeAllieva}
+          onChange={(e) => setNomeAllieva(e.target.value)}
+          placeholder="Nome dell'allieva per cui prenoti"
+          disabled={disabled}
+        />
+      </div>
+      <div className={styles.field}>
         <label htmlFor="email">Email</label>
         <input
           id="email"
@@ -98,11 +111,14 @@ export function BookingForm({
         Posti selezionati: {selectedIds.length}
         {selectedList && ` – ${selectedList}`}
       </p>
-      {selectedIds.length > 0 && (nome.trim() || email.trim()) && (
+      {selectedIds.length > 0 && (nome.trim() || nomeAllieva.trim() || email.trim()) && (
         <p className={styles.riepilogo}>
           Stai prenotando: <strong>{selectedList}</strong>
           {nome.trim() && (
             <> per <strong>{nome.trim()}</strong></>
+          )}
+          {nomeAllieva.trim() && (
+            <> – allieva: <strong>{nomeAllieva.trim()}</strong></>
           )}
           {email.trim() && (
             <> ({email.trim()})</>

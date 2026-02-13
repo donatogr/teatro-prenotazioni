@@ -190,7 +190,7 @@ export function AdminPanel({ onClose, onFileChange }: AdminPanelProps) {
             doc.addPage()
             y = 15
           }
-          doc.text(`${r.posto} – ${r.nome} – ${r.email}`, 14, y)
+          doc.text(`${r.posto} – ${r.nome}${r.nome_allieva ? ` – Allieva: ${r.nome_allieva}` : ''} – ${r.email}`, 14, y)
           y += lineH
         })
       }
@@ -204,7 +204,7 @@ export function AdminPanel({ onClose, onFileChange }: AdminPanelProps) {
           doc.addPage()
           y = 15
         }
-        doc.text(`${r.nome} (${r.email}) – ${r.count} posto/i: ${r.posti.join(', ')}`, 14, y)
+        doc.text(`${r.nome}${r.nome_allieva ? ` – Allieva: ${r.nome_allieva}` : ''} (${r.email}) – ${r.count} posto/i: ${r.posti.join(', ')}`, 14, y)
         y += lineH
       })
       doc.save('prenotazioni-teatro.pdf')
@@ -216,18 +216,18 @@ export function AdminPanel({ onClose, onFileChange }: AdminPanelProps) {
     const win = window.open('', '_blank')
     if (!win) return
     const rowsByPerson = exportData.byPerson
-      .map((r) => `<tr><td>${r.nome}</td><td>${r.email}</td><td>${r.count}</td><td>${r.posti.join(', ')}</td></tr>`)
+      .map((r) => `<tr><td>${r.nome}</td><td>${r.nome_allieva ?? ''}</td><td>${r.email}</td><td>${r.count}</td><td>${r.posti.join(', ')}</td></tr>`)
       .join('')
     const rowsBySeat = exportData.bySeat
-      .map((r) => `<tr><td>${r.posto}</td><td>${r.nome}</td><td>${r.email}</td></tr>`)
+      .map((r) => `<tr><td>${r.posto}</td><td>${r.nome}</td><td>${r.nome_allieva ?? ''}</td><td>${r.email}</td></tr>`)
       .join('')
     win.document.write(`
       <!DOCTYPE html><html><head><title>Prenotazioni</title><meta charset="utf-8"></head><body>
       <h1>Elenco prenotazioni</h1>
       <h2>Per posto</h2>
-      <table border="1" cellpadding="6"><thead><tr><th>Posto</th><th>Nome</th><th>Email</th></tr></thead><tbody>${rowsBySeat}</tbody></table>
+      <table border="1" cellpadding="6"><thead><tr><th>Posto</th><th>Nome</th><th>Allieva</th><th>Email</th></tr></thead><tbody>${rowsBySeat}</tbody></table>
       <h2>Per persona</h2>
-      <table border="1" cellpadding="6"><thead><tr><th>Nome</th><th>Email</th><th>N. posti</th><th>Posti</th></tr></thead><tbody>${rowsByPerson}</tbody></table>
+      <table border="1" cellpadding="6"><thead><tr><th>Nome</th><th>Allieva</th><th>Email</th><th>N. posti</th><th>Posti</th></tr></thead><tbody>${rowsByPerson}</tbody></table>
       </body></html>`)
     win.document.close()
     win.print()
@@ -579,7 +579,7 @@ function MappaPrenotazioni({
                           style={color ? { backgroundColor: color, borderColor: color } : undefined}
                           title={
                             occupato
-                              ? `Prenotato: ${posto.prenotazione_nome ?? ''} ${posto.prenotazione_email ?? ''}`.trim()
+                              ? `Prenotato: ${posto.prenotazione_nome ?? ''}${posto.prenotazione_nome_allieva ? ` – Allieva: ${posto.prenotazione_nome_allieva}` : ''} ${posto.prenotazione_email ?? ''}`.trim()
                               : posto.riservato_staff
                                 ? 'Riservato staff'
                                 : 'Disponibile'
@@ -606,6 +606,7 @@ function MappaPrenotazioni({
               <thead>
                 <tr>
                   <th>Nome</th>
+                  <th>Allieva</th>
                   <th>Email</th>
                   <th>N. posti</th>
                   <th>Posti</th>
@@ -615,6 +616,7 @@ function MappaPrenotazioni({
                 {exportData.byPerson.map((r, i) => (
                   <tr key={i}>
                     <td>{r.nome}</td>
+                    <td>{r.nome_allieva ?? ''}</td>
                     <td>{r.email}</td>
                     <td>{r.count}</td>
                     <td>{r.posti.join(', ')}</td>
@@ -655,19 +657,22 @@ function BloccaPosti({
   return (
     <div className={styles.formSection}>
       <p className={styles.hint}>
-        Clicca su una <strong>fila</strong> per riservare/liberare tutta la fila. Clicca su un <strong>posto libero</strong> per bloccarlo (riservato staff). I posti prenotati non sono modificabili.
+        Clicca sulla <strong>lettera della fila</strong> per bloccare/sbloccare tutta la fila. Clicca su un <strong>posto libero</strong> per bloccarlo singolarmente (riservato staff). I posti prenotati non sono modificabili.
       </p>
       {loading && <p>Caricamento...</p>}
       {!loading && file.length > 0 && (
         <div className={styles.adminGridWrap}>
           <div className={styles.adminGrid}>
-            {file.map((fila) => (
+            {file.map((fila) => {
+              const postiInFila = byFila[fila] ?? []
+              const filaBloccata = postiInFila.length > 0 && postiInFila.every((p) => p.riservato_staff)
+              return (
               <div key={fila} className={styles.adminRow}>
                 <button
                   type="button"
-                  className={styles.filaLabelBtn}
+                  className={filaBloccata ? `${styles.filaLabelBtn} ${styles.filaLabelBtnRiservata}` : styles.filaLabelBtn}
                   onClick={() => onToggleFila(fila)}
-                  title={`Riserva/libera tutta la fila ${fila}`}
+                  title={filaBloccata ? `Fila ${fila} bloccata. Clicca per sbloccare tutta la fila` : `Fila ${fila} libera. Clicca per bloccare tutta la fila`}
                 >
                   {fila}
                 </button>
@@ -691,7 +696,7 @@ function BloccaPosti({
                           disabled={occupato}
                           title={
                             occupato
-                              ? `Prenotato: ${posto.prenotazione_nome ?? ''}`.trim()
+                              ? `Prenotato: ${posto.prenotazione_nome ?? ''}${posto.prenotazione_nome_allieva ? ` – Allieva: ${posto.prenotazione_nome_allieva}` : ''}`.trim()
                               : isRiservato
                                 ? 'Clicca per liberare'
                                 : 'Clicca per bloccare'
@@ -704,7 +709,7 @@ function BloccaPosti({
                     })}
                 </div>
               </div>
-            ))}
+            )})}
           </div>
         </div>
       )}

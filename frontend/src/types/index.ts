@@ -15,6 +15,7 @@ export interface Posto {
   stato: 'disponibile' | 'occupato' | 'non_disponibile' | 'bloccato' | 'bloccato_da_me';
   /** Presente quando stato === 'occupato' (per colore per persona) */
   prenotazione_nome?: string;
+  prenotazione_nome_allieva?: string;
   prenotazione_email?: string;
 }
 
@@ -23,11 +24,13 @@ export interface ExportBySeat {
   numero: number;
   posto: string;
   nome: string;
+  nome_allieva?: string;
   email: string;
 }
 
 export interface ExportByPerson {
   nome: string;
+  nome_allieva?: string;
   email: string;
   count: number;
   posti: string[];
@@ -37,6 +40,7 @@ export interface Prenotazione {
   id: number;
   posto_id: number;
   nome: string;
+  nome_allieva?: string;
   email: string;
   timestamp: string | null;
   stato: string;

@@ -64,6 +64,7 @@ export async function rilascioBlocchi(sessionId: string, postoIds: number[]): Pr
 export async function creaPrenotazione(
   postoIds: number[],
   nome: string,
+  nomeAllieva: string,
   email: string,
   sessionId: string = ''
 ): Promise<{
@@ -74,7 +75,7 @@ export async function creaPrenotazione(
   const r = await fetch(`${API_BASE}/prenotazioni`, {
     method: 'POST',
     headers: { 'Content-Type': 'application/json', ...(sessionId ? sessionHeaders(sessionId) : {}) },
-    body: JSON.stringify({ posto_ids: postoIds, nome, email, session_id: sessionId }),
+    body: JSON.stringify({ posto_ids: postoIds, nome, nome_allieva: nomeAllieva, email, session_id: sessionId }),
   });
   const data = await r.json().catch(() => ({}));
   if (!r.ok) throw new Error(data.error || 'Errore prenotazione');
