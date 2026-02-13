@@ -180,32 +180,117 @@
   overflow-y: auto;
 }
 
-.adminSidebar {
-  width: 380px;
-  flex-shrink: 0;
-  overflow-y: auto;
-  border-left: 1px solid rgba(255, 255, 255, 0.15);
-  padding-left: 1.25rem;
+.elencoSection {
+  margin: 1rem 0;
+  max-width: 100%;
 }
 
-@media (max-width: 900px) {
-  .adminLayout {
-    flex-direction: column;
-  }
-
-  .adminSidebar {
-    width: 100%;
-    border-left: none;
-    border-top: 1px solid rgba(255, 255, 255, 0.15);
-    padding-left: 0;
-    padding-top: 1rem;
-  }
-}
-
-.sidebarTitle {
-  font-size: 1rem;
+.elencoTitle {
+  font-size: 1.1rem;
   font-weight: 600;
   margin: 0 0 0.75rem 0;
+  color: rgba(255, 255, 255, 0.95);
+}
+
+.lastExportAt {
+  font-size: 0.8rem;
+  color: rgba(255, 255, 255, 0.6);
+  margin: 0.25rem 0 0.5rem 0;
+}
+
+.newCountBadge {
+  font-size: 0.85rem;
+  color: #86efac;
+  margin: 0.25rem 0 0.5rem 0;
+  font-weight: 600;
+}
+
+.skeletonTable {
+  display: flex;
+  flex-direction: column;
+  gap: 0.5rem;
+}
+
+.skeletonRow {
+  height: 36px;
+  background: linear-gradient(90deg, rgba(255,255,255,0.08) 25%, rgba(255,255,255,0.12) 50%, rgba(255,255,255,0.08) 75%);
+  background-size: 200% 100%;
+  animation: skeletonShine 1.2s ease-in-out infinite;
+  border-radius: 4px;
+}
+
+@keyframes skeletonShine {
+  0% { background-position: 200% 0; }
+  100% { background-position: -200% 0; }
+}
+
+.exportRowClickable {
+  cursor: pointer;
+}
+
+.exportRowClickable:hover {
+  background: rgba(255, 255, 255, 0.08);
+}
+
+.rowDrawerOverlay {
+  position: fixed;
+  inset: 0;
+  background: rgba(0, 0, 0, 0.6);
+  z-index: 102;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  padding: 1rem;
+}
+
+.rowDrawer {
+  background: #1e293b;
+  border-radius: 12px;
+  padding: 1.25rem;
+  max-width: 400px;
+  width: 100%;
+  border: 1px solid rgba(255, 255, 255, 0.1);
+}
+
+.rowDrawerHeader {
+  display: flex;
+  justify-content: space-between;
+  align-items: center;
+  margin-bottom: 1rem;
+}
+
+.rowDrawerHeader h4 {
+  margin: 0;
+  font-size: 1.1rem;
+}
+
+.rowDrawerClose {
+  padding: 0.25rem 0.5rem;
+  border: none;
+  background: transparent;
+  color: rgba(255, 255, 255, 0.8);
+  cursor: pointer;
+  font-size: 1.5rem;
+  line-height: 1;
+}
+
+.rowDrawerClose:hover {
+  color: #fff;
+}
+
+.rowDrawerBody {
+  margin: 0 0 1rem 0;
+  font-size: 0.9rem;
+}
+
+.rowDrawerBody dt {
+  color: rgba(255, 255, 255, 0.6);
+  margin-top: 0.5rem;
+  margin-bottom: 0.15rem;
+}
+
+.rowDrawerBody dd {
+  margin: 0;
   color: rgba(255, 255, 255, 0.95);
 }
 
@@ -549,6 +634,63 @@
   margin-top: 0.75rem;
 }
 
+.mappaSkeletonWrap {
+  margin: 1rem 0;
+}
+
+.mappaSkeleton {
+  margin-top: 1rem;
+  display: flex;
+  flex-direction: column;
+  gap: 0.35rem;
+}
+
+.mappaSkeletonRow {
+  display: flex;
+  align-items: center;
+  gap: 0.5rem;
+}
+
+.skeletonFilaLabel {
+  width: 28px;
+  height: 28px;
+  border-radius: 6px;
+  background: rgba(255, 255, 255, 0.1);
+  display: inline-block;
+}
+
+.mappaSkeletonSeats {
+  display: flex;
+  gap: 4px;
+  flex-wrap: wrap;
+}
+
+.skeletonSeat {
+  width: 26px;
+  height: 26px;
+  border-radius: 4px;
+  background: linear-gradient(135deg, rgba(255,255,255,0.08) 0%, rgba(255,255,255,0.14) 100%);
+  display: inline-block;
+  animation: skeletonPulse 1.5s ease-in-out infinite;
+}
+
+@keyframes skeletonPulse {
+  0%, 100% { opacity: 0.7; }
+  50% { opacity: 1; }
+}
+
+.btnSpinner {
+  display: inline-block;
+  width: 14px;
+  height: 14px;
+  border: 2px solid rgba(255,255,255,0.3);
+  border-top-color: #fff;
+  border-radius: 50%;
+  animation: spin 0.6s linear infinite;
+  margin-right: 0.5rem;
+  vertical-align: middle;
+}
+
 .spinnerWrap {
   padding: 2rem;
   display: flex;
@@ -601,13 +743,6 @@
   gap: 0.5rem;
   align-items: center;
   margin-bottom: 0.5rem;
-}
-
-.gruppoPreview {
-  flex: 1 1 100%;
-  margin: 0.15rem 0 0 0;
-  font-size: 0.8rem;
-  color: rgba(255, 255, 255, 0.65);
 }
 
 .gruppoEliminaBtn {

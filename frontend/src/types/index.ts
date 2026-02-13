@@ -34,6 +34,8 @@ export interface ExportByPerson {
   email: string;
   count: number;
   posti: string[];
+  /** Data/ora prima prenotazione (ISO string), se disponibile */
+  timestamp?: string;
 }
 
 export interface Prenotazione {

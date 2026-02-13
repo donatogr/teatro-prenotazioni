@@ -248,7 +248,7 @@ def admin_export():
         return jsonify({'error': 'Non autorizzato'}), 401
     pren_list = Prenotazione.query.filter_by(stato='confermata').order_by(Prenotazione.nome, Prenotazione.email).all()
     by_seat = []
-    person_map = {}  # (nome, email) -> { count, posti: [] }
+    person_map = {}  # (nome, email) -> { count, posti: [], timestamp: datetime }
     for p in pren_list:
         posto = Posto.query.get(p.posto_id)
         if not posto:
@@ -258,10 +258,18 @@ def admin_export():
         by_seat.append({'fila': fila, 'numero': numero, 'posto': label, 'nome': p.nome, 'nome_allieva': p.nome_allieva or '', 'email': p.email})
         key = (p.nome, p.email)
         if key not in person_map:
-            person_map[key] = {'nome': p.nome, 'nome_allieva': p.nome_allieva or '', 'email': p.email, 'count': 0, 'posti': []}
+            person_map[key] = {'nome': p.nome, 'nome_allieva': p.nome_allieva or '', 'email': p.email, 'count': 0, 'posti': [], 'timestamp': p.timestamp}
+        else:
+            if p.timestamp and (person_map[key]['timestamp'] is None or p.timestamp < person_map[key]['timestamp']):
+                person_map[key]['timestamp'] = p.timestamp
         person_map[key]['count'] += 1
         person_map[key]['posti'].append(label)
-    by_person = [{'nome': v['nome'], 'nome_allieva': v['nome_allieva'], 'email': v['email'], 'count': v['count'], 'posti': v['posti']} for v in person_map.values()]
+    by_person = []
+    for v in person_map.values():
+        rec = {'nome': v['nome'], 'nome_allieva': v['nome_allieva'], 'email': v['email'], 'count': v['count'], 'posti': v['posti']}
+        if v.get('timestamp'):
+            rec['timestamp'] = v['timestamp'].isoformat()
+        by_person.append(rec)
     by_person.sort(key=lambda x: (-x['count'], x['nome'], x['email']))
     by_seat.sort(key=lambda x: (x['fila'], x['numero']))
     return jsonify({'bySeat': by_seat, 'byPerson': by_person})

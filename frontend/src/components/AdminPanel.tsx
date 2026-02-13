@@ -1,4 +1,4 @@
-import { useState, useCallback, useEffect, useMemo } from 'react'
+import { useState, useCallback, useEffect, useMemo, useRef } from 'react'
 import {
   getAdminPosti,
   getFile,
@@ -11,6 +11,23 @@ import {
 } from '../services/api'
 import type { Posto, ExportBySeat, ExportByPerson, Impostazioni, GruppoFile } from '../types'
 import styles from './AdminPanel.module.css'
+
+/** Formatta timestamp ISO in "gg/mm/aaaa hh:mm" per visualizzazione. */
+function formatExportDate(iso?: string): string {
+  if (!iso) return '—'
+  try {
+    const d = new Date(iso)
+    if (Number.isNaN(d.getTime())) return '—'
+    const day = String(d.getDate()).padStart(2, '0')
+    const month = String(d.getMonth() + 1).padStart(2, '0')
+    const year = d.getFullYear()
+    const h = String(d.getHours()).padStart(2, '0')
+    const m = String(d.getMinutes()).padStart(2, '0')
+    return `${day}/${month}/${year} ${h}:${m}`
+  } catch {
+    return '—'
+  }
+}
 
 /** Espande "A-G" in [A,B,...,G] o "A,B,C" in lista (per raggruppamento file). */
 function espandiLettere(lettere: string): string[] {
@@ -35,7 +52,7 @@ const PERSON_COLORS = [
   '#f87171', '#ef4444', '#be123c', '#9f1239', '#881337',
 ]
 
-type Tab = 'spettacolo' | 'teatro' | 'mappa' | 'blocca'
+type Tab = 'spettacolo' | 'teatro' | 'mappa' | 'elenco'
 
 interface AdminPanelProps {
   onClose: () => void
@@ -57,15 +74,19 @@ export function AdminPanel({ onClose, onFileChange }: AdminPanelProps) {
   const [toastMessage, setToastMessage] = useState('')
   const [exportLoading, setExportLoading] = useState(false)
   const [exportSearch, setExportSearch] = useState('')
-  type SortKey = 'nome' | 'email' | 'count'
+  type SortKey = 'nome' | 'email' | 'count' | 'timestamp'
   const [exportSort, setExportSort] = useState<{ key: SortKey; dir: 1 | -1 } | null>(null)
+  const [selectedRow, setSelectedRow] = useState<ExportByPerson | null>(null)
+  const [lastExportAt, setLastExportAt] = useState<Date | null>(null)
+  const [newCountBadge, setNewCountBadge] = useState<number>(0)
+  const prevExportTotalRef = useRef(0)
 
   const loadPosti = useCallback(() => {
     if (!password) return
     setLoading(true)
     getAdminPosti(password)
       .then(setPosti)
-      .catch((e) => setError(e instanceof Error ? e.message : 'Errore'))
+      .catch((e) => setError((e instanceof Error ? e.message : 'Errore') + ' Riprova a ricaricare la pagina o controlla la connessione.'))
       .finally(() => setLoading(false))
   }, [password])
 
@@ -73,15 +94,30 @@ export function AdminPanel({ onClose, onFileChange }: AdminPanelProps) {
     if (!password) return
     getImpostazioni(password)
       .then(setImpostazioniState)
-      .catch(() => setImpostazioniState(null))
+      .catch(() => {
+        setImpostazioniState(null)
+        setError('Impossibile caricare le impostazioni. Riprova a ricaricare la pagina.')
+      })
   }, [password])
 
   const loadExport = useCallback(() => {
     if (!password) return
     setExportLoading(true)
+    setNewCountBadge(0)
     getExportData(password)
-      .then(setExportData)
-      .catch(() => setExportData(null))
+      .then((data) => {
+        setExportData(data)
+        setLastExportAt(new Date())
+        const total = data.byPerson.reduce((s, r) => s + r.count, 0)
+        if (prevExportTotalRef.current > 0 && total > prevExportTotalRef.current) {
+          setNewCountBadge(total - prevExportTotalRef.current)
+        }
+        prevExportTotalRef.current = total
+      })
+      .catch(() => {
+        setExportData(null)
+        setError('Impossibile caricare l\'elenco. Riprova a ricaricare la pagina o controlla la connessione.')
+      })
       .finally(() => setExportLoading(false))
   }, [password])
 
@@ -98,10 +134,9 @@ export function AdminPanel({ onClose, onFileChange }: AdminPanelProps) {
       .then(() => {
         setAuthenticated(true)
         loadImpostazioni()
-        loadPosti()
       })
-      .catch((e) => setError(e instanceof Error ? e.message : 'Non autorizzato'))
-  }, [password, loadImpostazioni, loadPosti])
+      .catch((e) => setError((e instanceof Error ? e.message : 'Non autorizzato') + ' Riprova o controlla la connessione.'))
+  }, [password, loadImpostazioni])
 
   useEffect(() => {
     if (!authenticated) return
@@ -111,8 +146,7 @@ export function AdminPanel({ onClose, onFileChange }: AdminPanelProps) {
       loadPosti()
       loadExport()
     }
-    if (tab === 'blocca') loadPosti()
-    loadExport()
+    if (tab === 'elenco') loadExport()
   }, [authenticated, tab, loadImpostazioni, loadPosti, loadExport])
 
   const byFila = useMemo(() => {
@@ -167,12 +201,13 @@ export function AdminPanel({ onClose, onFileChange }: AdminPanelProps) {
       : [...exportData.byPerson]
     if (exportSort) {
       list = [...list].sort((a, b) => {
-        const cmp =
-          exportSort.key === 'count'
-            ? a.count - b.count
-            : (exportSort.key === 'nome' ? (a.nome ?? '') : (a.email ?? '')).localeCompare(
-                exportSort.key === 'nome' ? (b.nome ?? '') : (b.email ?? '')
-              )
+        let cmp: number
+        if (exportSort.key === 'count') cmp = a.count - b.count
+        else if (exportSort.key === 'timestamp') {
+          const ta = a.timestamp ?? ''
+          const tb = b.timestamp ?? ''
+          cmp = ta.localeCompare(tb)
+        } else cmp = (exportSort.key === 'nome' ? (a.nome ?? '') : (a.email ?? '')).localeCompare(exportSort.key === 'nome' ? (b.nome ?? '') : (b.email ?? ''))
         return exportSort.dir * cmp
       })
     }
@@ -195,7 +230,7 @@ export function AdminPanel({ onClose, onFileChange }: AdminPanelProps) {
       loadPosti()
       onFileChange?.()
     } catch (e) {
-      setError(e instanceof Error ? e.message : 'Errore')
+      setError((e instanceof Error ? e.message : 'Errore') + ' Riprova a ricaricare la pagina.')
     }
   }
 
@@ -207,7 +242,7 @@ export function AdminPanel({ onClose, onFileChange }: AdminPanelProps) {
       loadPosti()
       onFileChange?.()
     } catch (e) {
-      setError(e instanceof Error ? e.message : 'Errore')
+      setError((e instanceof Error ? e.message : 'Errore') + ' Riprova a ricaricare la pagina.')
     }
   }
 
@@ -220,7 +255,7 @@ export function AdminPanel({ onClose, onFileChange }: AdminPanelProps) {
       setToastMessage('Salvato')
       loadImpostazioni()
     } catch (e) {
-      setError(e instanceof Error ? e.message : 'Errore')
+      setError((e instanceof Error ? e.message : 'Errore') + ' Riprova a ricaricare la pagina o controlla la connessione.')
     } finally {
       setSaving(false)
     }
@@ -235,7 +270,7 @@ export function AdminPanel({ onClose, onFileChange }: AdminPanelProps) {
       setToastMessage('Salvato')
       loadImpostazioni()
     } catch (e) {
-      setError(e instanceof Error ? e.message : 'Errore')
+      setError((e instanceof Error ? e.message : 'Errore') + ' Riprova a ricaricare la pagina o controlla la connessione.')
     } finally {
       setSaving(false)
     }
@@ -253,7 +288,7 @@ export function AdminPanel({ onClose, onFileChange }: AdminPanelProps) {
       loadImpostazioni()
       onFileChange?.()
     } catch (e) {
-      setError(e instanceof Error ? e.message : 'Errore')
+      setError((e instanceof Error ? e.message : 'Errore') + ' Riprova a ricaricare la pagina.')
     }
   }
 
@@ -377,7 +412,7 @@ export function AdminPanel({ onClose, onFileChange }: AdminPanelProps) {
     { id: 'spettacolo', label: 'Dati spettacolo' },
     { id: 'teatro', label: 'Caratteristiche teatro' },
     { id: 'mappa', label: 'Mappa e prenotazioni' },
-    { id: 'blocca', label: 'Blocca posti' },
+    { id: 'elenco', label: 'Elenco prenotazioni' },
   ]
 
   return (
@@ -439,136 +474,159 @@ export function AdminPanel({ onClose, onFileChange }: AdminPanelProps) {
                 sezioni={sezioniAdmin}
                 personColorMap={personColorMap}
                 loading={loading}
-              />
-            )}
-
-            {tab === 'blocca' && (
-              <BloccaPosti
-                posti={posti}
-                byFila={byFila}
-                sezioni={sezioniAdmin}
-                loading={loading}
                 onToggleFila={toggleFila}
                 onTogglePosto={togglePosto}
               />
             )}
-          </div>
 
-          <aside className={styles.adminSidebar}>
-            <h3 className={styles.sidebarTitle}>Elenco prenotazioni</h3>
-            <button
-              type="button"
-              className={styles.exportLoadBtn}
-              onClick={loadExport}
-              disabled={exportLoading}
-              aria-label="Aggiorna elenco prenotazioni"
-            >
-              {exportLoading ? 'Aggiornamento...' : 'Aggiorna elenco'}
-            </button>
-            {exportData && (
-              <>
-                {exportSummary && (
-                  <p className={styles.exportSummary}>
-                    Totale: <strong>{exportSummary.nPersone}</strong> prenotazioni, <strong>{exportSummary.nPosti}</strong> posti
+            {tab === 'elenco' && (
+              <div className={styles.elencoSection}>
+                <h3 className={styles.elencoTitle}>Elenco prenotazioni</h3>
+                <button
+                  type="button"
+                  className={styles.exportLoadBtn}
+                  onClick={loadExport}
+                  disabled={exportLoading}
+                  aria-label="Aggiorna elenco prenotazioni"
+                >
+                  {exportLoading ? 'Aggiornamento...' : 'Aggiorna elenco'}
+                </button>
+                {lastExportAt && !exportLoading && (
+                  <p className={styles.lastExportAt}>
+                    Elenco aggiornato alle {lastExportAt.getHours().toString().padStart(2, '0')}:{lastExportAt.getMinutes().toString().padStart(2, '0')}
                   </p>
                 )}
-                <input
-                  type="search"
-                  className={styles.exportSearch}
-                  placeholder="Cerca per nome o email..."
-                  value={exportSearch}
-                  onChange={(e) => setExportSearch(e.target.value)}
-                  aria-label="Cerca nell'elenco prenotazioni"
-                />
-                <div className={styles.exportTableWrap}>
-                  <table className={styles.exportTable}>
-                    <thead>
-                      <tr>
-                        <th>
-                          <button
-                            type="button"
-                            className={styles.thSort}
-                            onClick={() =>
-                              setExportSort((s) =>
-                                s?.key === 'nome' ? { key: 'nome', dir: (s.dir * -1) as 1 | -1 } : { key: 'nome', dir: 1 }
-                              )
-                            }
-                          >
-                            Nome {exportSort?.key === 'nome' ? (exportSort.dir === 1 ? '↑' : '↓') : ''}
-                          </button>
-                        </th>
-                        <th>Allieva</th>
-                        <th>
-                          <button
-                            type="button"
-                            className={styles.thSort}
-                            onClick={() =>
-                              setExportSort((s) =>
-                                s?.key === 'email' ? { key: 'email', dir: (s.dir * -1) as 1 | -1 } : { key: 'email', dir: 1 }
-                              )
-                            }
-                          >
-                            Email {exportSort?.key === 'email' ? (exportSort.dir === 1 ? '↑' : '↓') : ''}
-                          </button>
-                        </th>
-                        <th>
-                          <button
-                            type="button"
-                            className={styles.thSort}
-                            onClick={() =>
-                              setExportSort((s) =>
-                                s?.key === 'count' ? { key: 'count', dir: (s.dir * -1) as 1 | -1 } : { key: 'count', dir: -1 }
-                              )
-                            }
-                          >
-                            N. {exportSort?.key === 'count' ? (exportSort.dir === 1 ? '↑' : '↓') : ''}
-                          </button>
-                        </th>
-                        <th>Posti</th>
-                      </tr>
-                    </thead>
-                    <tbody>
-                      {exportFilteredAndSorted.length === 0 ? (
-                        <tr>
-                          <td colSpan={5} className={styles.exportEmpty}>
-                            {exportData.byPerson.length === 0 ? 'Nessuna prenotazione' : 'Nessun risultato per la ricerca'}
-                          </td>
-                        </tr>
-                      ) : (
-                        exportFilteredAndSorted.map((r, i) => {
-                          const personKey = `${r.nome}\0${r.email}`
-                          const cellColor = personColorMap.get(personKey)
-                          return (
-                            <tr key={i}>
-                              <td>{r.nome}</td>
-                              <td>{r.nome_allieva ?? ''}</td>
-                              <td>{r.email}</td>
-                              <td
-                                className={cellColor ? styles.countCellColored : undefined}
-                                style={cellColor ? { backgroundColor: cellColor, borderColor: cellColor } : undefined}
-                              >
-                                {r.count}
+                {newCountBadge > 0 && (
+                  <p className={styles.newCountBadge}>{newCountBadge} nuove prenotazioni</p>
+                )}
+                {exportLoading && (
+                  <div className={styles.exportTableWrap}>
+                    <div className={styles.skeletonTable}>
+                      {[1, 2, 3, 4, 5, 6, 7].map((i) => (
+                        <div key={i} className={styles.skeletonRow} />
+                      ))}
+                    </div>
+                  </div>
+                )}
+                {!exportLoading && exportData && (
+                  <>
+                    {exportSummary && (
+                      <p className={styles.exportSummary}>
+                        Totale: <strong>{exportSummary.nPersone}</strong> prenotazioni, <strong>{exportSummary.nPosti}</strong> posti
+                      </p>
+                    )}
+                    <input
+                      type="search"
+                      className={styles.exportSearch}
+                      placeholder="Cerca per nome o email..."
+                      value={exportSearch}
+                      onChange={(e) => setExportSearch(e.target.value)}
+                      aria-label="Cerca nell'elenco prenotazioni"
+                    />
+                    <div className={styles.exportTableWrap}>
+                      <table className={styles.exportTable}>
+                        <thead>
+                          <tr>
+                            <th>
+                              <button type="button" className={styles.thSort} onClick={() => setExportSort((s) => (s?.key === 'nome' ? { key: 'nome', dir: (s.dir * -1) as 1 | -1 } : { key: 'nome', dir: 1 }))}>
+                                Nome {exportSort?.key === 'nome' ? (exportSort.dir === 1 ? '↑' : '↓') : ''}
+                              </button>
+                            </th>
+                            <th>Allieva</th>
+                            <th>
+                              <button type="button" className={styles.thSort} onClick={() => setExportSort((s) => (s?.key === 'email' ? { key: 'email', dir: (s.dir * -1) as 1 | -1 } : { key: 'email', dir: 1 }))}>
+                                Email {exportSort?.key === 'email' ? (exportSort.dir === 1 ? '↑' : '↓') : ''}
+                              </button>
+                            </th>
+                            <th>
+                              <button type="button" className={styles.thSort} onClick={() => setExportSort((s) => (s?.key === 'count' ? { key: 'count', dir: (s.dir * -1) as 1 | -1 } : { key: 'count', dir: -1 }))}>
+                                N. {exportSort?.key === 'count' ? (exportSort.dir === 1 ? '↑' : '↓') : ''}
+                              </button>
+                            </th>
+                            <th>
+                              <button type="button" className={styles.thSort} onClick={() => setExportSort((s) => (s?.key === 'timestamp' ? { key: 'timestamp', dir: (s.dir * -1) as 1 | -1 } : { key: 'timestamp', dir: -1 }))}>
+                                Data {exportSort?.key === 'timestamp' ? (exportSort.dir === 1 ? '↑' : '↓') : ''}
+                              </button>
+                            </th>
+                            <th>Posti</th>
+                          </tr>
+                        </thead>
+                        <tbody>
+                          {exportFilteredAndSorted.length === 0 ? (
+                            <tr>
+                              <td colSpan={6} className={styles.exportEmpty}>
+                                {exportData.byPerson.length === 0 ? 'Nessuna prenotazione' : 'Nessun risultato per la ricerca'}
                               </td>
-                              <td>{r.posti.join(', ')}</td>
                             </tr>
-                          )
-                        })
-                      )}
-                    </tbody>
-                  </table>
-                </div>
-                <div className={styles.buttonRow}>
-                  <button type="button" className={styles.pdfBtn} onClick={exportPdf} aria-label="Esporta elenco in PDF">
-                    Esporta PDF
-                  </button>
-                  <button type="button" className={styles.printBtn} onClick={stampaLista} aria-label="Stampa lista prenotazioni">
-                    <span aria-hidden="true">🖨</span> Stampa lista
-                  </button>
-                </div>
-              </>
+                          ) : (
+                            exportFilteredAndSorted.map((r, i) => {
+                              const personKey = `${r.nome}\0${r.email}`
+                              const cellColor = personColorMap.get(personKey)
+                              return (
+                                <tr
+                                  key={i}
+                                  className={styles.exportRowClickable}
+                                  onClick={() => setSelectedRow(r)}
+                                  role="button"
+                                  tabIndex={0}
+                                  onKeyDown={(e) => e.key === 'Enter' && setSelectedRow(r)}
+                                  aria-label={`Dettaglio ${r.nome} ${r.email}`}
+                                >
+                                  <td>{r.nome}</td>
+                                  <td>{r.nome_allieva ?? ''}</td>
+                                  <td>{r.email}</td>
+                                  <td className={cellColor ? styles.countCellColored : undefined} style={cellColor ? { backgroundColor: cellColor, borderColor: cellColor } : undefined}>
+                                    {r.count}
+                                  </td>
+                                  <td>{formatExportDate(r.timestamp)}</td>
+                                  <td>{r.posti.join(', ')}</td>
+                                </tr>
+                              )
+                            })
+                          )}
+                        </tbody>
+                      </table>
+                    </div>
+                    <div className={styles.buttonRow}>
+                      <button type="button" className={styles.pdfBtn} onClick={exportPdf} aria-label="Esporta elenco in PDF">
+                        Esporta PDF
+                      </button>
+                      <button type="button" className={styles.printBtn} onClick={stampaLista} aria-label="Stampa lista prenotazioni">
+                        <span aria-hidden="true">🖨</span> Stampa lista
+                      </button>
+                    </div>
+                  </>
+                )}
+              </div>
             )}
-          </aside>
+          </div>
         </div>
+
+        {selectedRow && (
+          <div className={styles.rowDrawerOverlay} onClick={() => setSelectedRow(null)} role="button" tabIndex={0} onKeyDown={(e) => e.key === 'Escape' && setSelectedRow(null)} aria-label="Chiudi dettaglio">
+            <div className={styles.rowDrawer} onClick={(e) => e.stopPropagation()}>
+              <div className={styles.rowDrawerHeader}>
+                <h4>Dettaglio prenotazione</h4>
+                <button type="button" className={styles.rowDrawerClose} onClick={() => setSelectedRow(null)} aria-label="Chiudi">×</button>
+              </div>
+              <dl className={styles.rowDrawerBody}>
+                <dt>Nome</dt><dd>{selectedRow.nome}</dd>
+                {selectedRow.nome_allieva && (<><dt>Allieva</dt><dd>{selectedRow.nome_allieva}</dd></>)}
+                <dt>Email</dt><dd>{selectedRow.email}</dd>
+                <dt>Data</dt><dd>{formatExportDate(selectedRow.timestamp)}</dd>
+                <dt>Posti</dt><dd>{selectedRow.posti.join(', ')}</dd>
+              </dl>
+              <div className={styles.buttonRow}>
+                <button type="button" className={styles.secondaryBtn} onClick={() => { navigator.clipboard.writeText(selectedRow.email); setToastMessage('Email copiata'); }}>
+                  Copia email
+                </button>
+                <button type="button" className={styles.secondaryBtn} onClick={() => { navigator.clipboard.writeText(selectedRow.posti.join(', ')); setToastMessage('Elenco posti copiato'); }}>
+                  Copia elenco posti
+                </button>
+              </div>
+            </div>
+          </div>
+        )}
       </div>
     </div>
   )
@@ -658,6 +716,7 @@ function SpettacoloForm({
         {dataError && <p id="data-ora-error" className={styles.fieldError}>{dataError}</p>}
       </div>
       <button type="submit" className={styles.primaryBtn} disabled={saving}>
+        {saving && <span className={styles.btnSpinner} aria-hidden />}
         {saving ? 'Salvataggio...' : 'Salva'}
       </button>
     </form>
@@ -756,7 +815,6 @@ function TeatroForm({
               className={styles.gruppoNome}
               aria-label={`Nome gruppo ${i + 1}`}
             />
-            <p className={styles.gruppoPreview}>{g.lettere.trim() ? `${g.lettere.trim()} → ${g.nome.trim() || '—'}` : '—'}</p>
             <button type="button" onClick={() => removeGruppo(i)} className={styles.gruppoEliminaBtn} aria-label={`Elimina gruppo ${i + 1}`}>
               Elimina
             </button>
@@ -768,6 +826,7 @@ function TeatroForm({
       </div>
       <div className={styles.buttonRow}>
         <button type="submit" className={styles.primaryBtn} disabled={saving}>
+          {saving && <span className={styles.btnSpinner} aria-hidden />}
           {saving ? 'Salvataggio...' : 'Salva'}
         </button>
         <button type="button" onClick={onGeneraPosti} className={styles.dangerBtn}>
@@ -784,93 +843,13 @@ function MappaPrenotazioni({
   sezioni,
   personColorMap,
   loading,
-}: {
-  posti: Posto[]
-  byFila: Record<string, Posto[]>
-  sezioni: { nomeGruppo: string | null; file: string[] }[]
-  personColorMap: Map<string, string>
-  loading: boolean
-}) {
-  return (
-    <div className={styles.formSection}>
-      <p className={styles.hint}>
-        Mappa con posti colorati per persona. Lista prenotazioni a destra.
-      </p>
-      {loading && <div className={styles.spinnerWrap} aria-busy="true"><span className={styles.spinner} /></div>}
-      {!loading && sezioni.some((s) => s.file.length > 0) && (
-        <>
-        <div className={styles.legenda}>
-          <span className={styles.legendaItem}><span className={styles.seatDisponibile} /> Disponibile</span>
-          <span className={styles.legendaItem}><span className={styles.seatRiservato} /> Riservato staff</span>
-          <span className={styles.legendaItem}><span className={styles.seatOccupato} style={{ backgroundColor: '#b91c1c' }} /> Prenotato</span>
-        </div>
-        <div className={styles.adminGridWrap}>
-          <div className={styles.adminGrid}>
-            {sezioni.map((sez, idx) => (
-              <div key={sez.nomeGruppo ?? `sez-${idx}`} className={styles.adminSection}>
-                {sez.nomeGruppo != null && (
-                  <h4 className={styles.sectionTitle}>{sez.nomeGruppo}</h4>
-                )}
-                {sez.file.map((fila) => (
-                  <div key={fila} className={styles.adminRow}>
-                    <span className={styles.filaLabel}>{fila}</span>
-                    <div className={styles.adminSeats}>
-                      {byFila[fila]
-                        .sort((a, b) => b.numero - a.numero)
-                        .map((posto) => {
-                          const occupato = posto.stato === 'occupato'
-                          const personKey =
-                            occupato
-                              ? `${posto.prenotazione_nome ?? ''}\0${posto.prenotazione_email ?? ''}`
-                              : ''
-                          const color = occupato ? personColorMap.get(personKey) : undefined
-                          return (
-                            <span
-                              key={posto.id}
-                              className={
-                                occupato
-                                  ? styles.seatOccupato
-                                  : posto.riservato_staff
-                                    ? styles.seatRiservato
-                                    : styles.seatDisponibile
-                              }
-                              style={color ? { backgroundColor: color, borderColor: color } : undefined}
-                              title={
-                                occupato
-                                  ? `Prenotato: ${posto.prenotazione_nome ?? ''}${posto.prenotazione_nome_allieva ? ` – Allieva: ${posto.prenotazione_nome_allieva}` : ''} ${posto.prenotazione_email ?? ''}`.trim()
-                                  : posto.riservato_staff
-                                    ? 'Riservato staff'
-                                    : 'Disponibile'
-                              }
-                            >
-                              {posto.numero}
-                            </span>
-                          )
-                        })}
-                    </div>
-                  </div>
-                ))}
-              </div>
-            ))}
-          </div>
-        </div>
-        </>
-      )}
-    </div>
-  )
-}
-
-function BloccaPosti({
-  posti,
-  byFila,
-  sezioni,
-  loading,
   onToggleFila,
   onTogglePosto,
 }: {
   posti: Posto[]
   byFila: Record<string, Posto[]>
   sezioni: { nomeGruppo: string | null; file: string[] }[]
+  personColorMap: Map<string, string>
   loading: boolean
   onToggleFila: (fila: string) => void
   onTogglePosto: (posto: Posto) => void
@@ -887,77 +866,96 @@ function BloccaPosti({
   return (
     <div className={styles.formSection}>
       <p className={styles.hint}>
-        Clicca sulla <strong>lettera della fila</strong> per bloccare/sbloccare tutta la fila. Clicca su un <strong>posto libero</strong> per bloccarlo singolarmente (riservato staff). I posti prenotati non sono modificabili.
+        Mappa con posti colorati per persona. Clicca sulla <strong>lettera della fila</strong> per bloccare/sbloccare tutta la fila. Clicca su un <strong>posto libero</strong> per bloccarlo singolarmente (riservato staff). I posti prenotati non sono modificabili.
       </p>
-      {loading && <div className={styles.spinnerWrap} aria-busy="true"><span className={styles.spinner} /></div>}
-      {!loading && sezioni.some((s) => s.file.length > 0) && (
-        <>
-        <div className={styles.legenda}>
-          <span className={styles.legendaItem}><span className={styles.seatDisponibile} /> Disponibile</span>
-          <span className={styles.legendaItem}><span className={styles.seatRiservato} /> Riservato staff</span>
-          <span className={styles.legendaItem}><span className={styles.seatOccupato} style={{ backgroundColor: '#b91c1c' }} /> Prenotato</span>
-        </div>
-        <div className={styles.adminGridWrap}>
-          <div className={styles.adminGrid}>
-            {sezioni.map((sez, idx) => (
-              <div key={sez.nomeGruppo ?? `sez-${idx}`} className={styles.adminSection}>
-                {sez.nomeGruppo != null && (
-                  <h4 className={styles.sectionTitle}>{sez.nomeGruppo}</h4>
-                )}
-                {sez.file.map((fila) => {
-                  const postiInFila = byFila[fila] ?? []
-                  const filaBloccata = postiInFila.length > 0 && postiInFila.every((p) => p.riservato_staff)
-                  return (
-                    <div key={fila} className={styles.adminRow}>
-                      <button
-                        type="button"
-                        className={filaBloccata ? `${styles.filaLabelBtn} ${styles.filaLabelBtnRiservata}` : styles.filaLabelBtn}
-                        onClick={() => handleToggleFila(fila)}
-                        title={filaBloccata ? `Fila ${fila} bloccata. Clicca per sbloccare tutta la fila` : `Fila ${fila} libera. Clicca per bloccare tutta la fila`}
-                        aria-label={filaBloccata ? `Fila ${fila} bloccata. Clicca per sbloccare` : `Fila ${fila} libera. Clicca per bloccare`}
-                      >
-                        {filaBloccata && <span className={styles.filaLockIcon} aria-hidden>🔒</span>}
-                        {fila}
-                      </button>
-                      <div className={styles.adminSeats}>
-                        {byFila[fila]
-                          .sort((a, b) => b.numero - a.numero)
-                          .map((posto) => {
-                            const occupato = posto.stato === 'occupato'
-                            const isRiservato = posto.riservato_staff
-                            return (
-                              <button
-                                key={posto.id}
-                                type="button"
-                                className={
-                                  occupato
-                                    ? styles.seatOccupato
-                                    : isRiservato
-                                      ? styles.seatRiservato
-                                      : styles.seatDisponibile
-                                }
-                                disabled={occupato}
-                                title={
-                                  occupato
-                                    ? `Prenotato: ${posto.prenotazione_nome ?? ''}${posto.prenotazione_nome_allieva ? ` – Allieva: ${posto.prenotazione_nome_allieva}` : ''}`.trim()
-                                    : isRiservato
-                                      ? 'Clicca per liberare'
-                                      : 'Clicca per bloccare'
-                                }
-                                onClick={() => !occupato && onTogglePosto(posto)}
-                              >
-                                {posto.numero}
-                              </button>
-                            )
-                          })}
-                      </div>
-                    </div>
-                  )
-                })}
+      {loading && (
+        <div className={styles.mappaSkeletonWrap} aria-busy="true">
+          <div className={styles.spinnerWrap}><span className={styles.spinner} /></div>
+          <div className={styles.mappaSkeleton}>
+            {[1, 2, 3, 4, 5, 6, 7, 8].map((row) => (
+              <div key={row} className={styles.mappaSkeletonRow}>
+                <span className={styles.skeletonFilaLabel} />
+                <div className={styles.mappaSkeletonSeats}>
+                  {[1, 2, 3, 4, 5, 6, 7, 8, 9, 10].map((s) => (
+                    <span key={s} className={styles.skeletonSeat} />
+                  ))}
+                </div>
               </div>
             ))}
           </div>
         </div>
+      )}
+      {!loading && sezioni.some((s) => s.file.length > 0) && (
+        <>
+          <div className={styles.legenda}>
+            <span className={styles.legendaItem}><span className={styles.seatDisponibile} /> Disponibile</span>
+            <span className={styles.legendaItem}><span className={styles.seatRiservato} /> Riservato staff</span>
+            <span className={styles.legendaItem}><span className={styles.seatOccupato} style={{ backgroundColor: '#b91c1c' }} /> Prenotato</span>
+          </div>
+          <div className={styles.adminGridWrap}>
+            <div className={styles.adminGrid}>
+              {sezioni.map((sez, idx) => (
+                <div key={sez.nomeGruppo ?? `sez-${idx}`} className={styles.adminSection}>
+                  {sez.nomeGruppo != null && (
+                    <h4 className={styles.sectionTitle}>{sez.nomeGruppo}</h4>
+                  )}
+                  {sez.file.map((fila) => {
+                    const postiInFila = byFila[fila] ?? []
+                    const filaBloccata = postiInFila.length > 0 && postiInFila.every((p) => p.riservato_staff)
+                    return (
+                      <div key={fila} className={styles.adminRow}>
+                        <button
+                          type="button"
+                          className={filaBloccata ? `${styles.filaLabelBtn} ${styles.filaLabelBtnRiservata}` : styles.filaLabelBtn}
+                          onClick={() => handleToggleFila(fila)}
+                          title={filaBloccata ? `Fila ${fila} bloccata. Clicca per sbloccare tutta la fila` : `Fila ${fila} libera. Clicca per bloccare tutta la fila`}
+                          aria-label={filaBloccata ? `Fila ${fila} bloccata. Clicca per sbloccare` : `Fila ${fila} libera. Clicca per bloccare`}
+                        >
+                          {filaBloccata && <span className={styles.filaLockIcon} aria-hidden>🔒</span>}
+                          {fila}
+                        </button>
+                        <div className={styles.adminSeats}>
+                          {byFila[fila]
+                            .sort((a, b) => b.numero - a.numero)
+                            .map((posto) => {
+                              const occupato = posto.stato === 'occupato'
+                              const isRiservato = posto.riservato_staff
+                              const personKey = occupato ? `${posto.prenotazione_nome ?? ''}\0${posto.prenotazione_email ?? ''}` : ''
+                              const color = occupato ? personColorMap.get(personKey) : undefined
+                              return (
+                                <button
+                                  key={posto.id}
+                                  type="button"
+                                  className={
+                                    occupato
+                                      ? styles.seatOccupato
+                                      : isRiservato
+                                        ? styles.seatRiservato
+                                        : styles.seatDisponibile
+                                  }
+                                  style={color ? { backgroundColor: color, borderColor: color } : undefined}
+                                  disabled={occupato}
+                                  title={
+                                    occupato
+                                      ? `Prenotato: ${posto.prenotazione_nome ?? ''}${posto.prenotazione_nome_allieva ? ` – Allieva: ${posto.prenotazione_nome_allieva}` : ''}`.trim()
+                                      : isRiservato
+                                        ? 'Clicca per liberare'
+                                        : 'Clicca per bloccare'
+                                  }
+                                  onClick={() => !occupato && onTogglePosto(posto)}
+                                >
+                                  {posto.numero}
+                                </button>
+                              )
+                            })}
+                        </div>
+                      </div>
+                    )
+                  })}
+                </div>
+              ))}
+            </div>
+          </div>
         </>
       )}
     </div>
