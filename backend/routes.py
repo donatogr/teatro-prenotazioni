@@ -386,7 +386,17 @@ def blocca_posti():
             bloccati.append(pid)
     db.session.commit()
     if conflitti:
-        return jsonify({'error': 'Alcuni posti sono stati bloccati da un altro utente.', 'bloccati': bloccati, 'conflitti': conflitti}), 409
+        conflitti_etichette = []
+        for pid in conflitti:
+            p = Posto.query.get(pid)
+            if p:
+                conflitti_etichette.append(f'{p.fila}{p.numero}')
+        return jsonify({
+            'error': 'Alcuni posti sono stati bloccati da un altro utente.',
+            'bloccati': bloccati,
+            'conflitti': conflitti,
+            'conflitti_etichette': conflitti_etichette,
+        }), 409
     return jsonify({'ok': True, 'bloccati': bloccati})
 
 

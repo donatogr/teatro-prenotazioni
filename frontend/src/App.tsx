@@ -16,8 +16,17 @@ function App() {
   const [selectedIds, setSelectedIds] = useState<number[]>([])
   const [spettacolo, setSpettacolo] = useState<{ nome_teatro: string; nome_spettacolo: string; data_ora_evento: string | null; gruppi_file: { lettere: string; nome: string }[] }>({ nome_teatro: '', nome_spettacolo: '', data_ora_evento: null, gruppi_file: [] })
   const [error, setError] = useState('')
-  const [success, setSuccess] = useState('')
+  const [successMessage, setSuccessMessage] = useState('')
+  const [successCodice, setSuccessCodice] = useState<string | null>(null)
+  const [copiedCodice, setCopiedCodice] = useState(false)
   const [showAdmin, setShowAdmin] = useState(false)
+  const [hintVisto, setHintVisto] = useState(() => {
+    try {
+      return typeof sessionStorage !== 'undefined' && sessionStorage.getItem('teatro-prenotazioni-hint-visto') === '1'
+    } catch {
+      return false
+    }
+  })
 
   const fetchSpettacolo = useCallback(() => {
     getSpettacolo().then(setSpettacolo)
@@ -26,6 +35,8 @@ function App() {
   useEffect(() => {
     fetchSpettacolo()
   }, [fetchSpettacolo])
+
+  const [refreshingMessage, setRefreshingMessage] = useState(false)
 
   const fetchPosti = useCallback(async () => {
     try {
@@ -60,7 +71,9 @@ function App() {
           setError('')
         } catch (e) {
           setError(e instanceof Error ? e.message : 'Alcuni posti non sono più disponibili')
+          setRefreshingMessage(true)
           fetchPosti()
+          setTimeout(() => setRefreshingMessage(false), 2000)
         }
       } else {
         setSelectedIds(newIds)
@@ -80,21 +93,39 @@ function App() {
     return () => clearInterval(t)
   }, [sessionId, selectedIds])
 
+  useEffect(() => {
+    if (selectedIds.length > 0 && !hintVisto) {
+      setHintVisto(true)
+      try {
+        sessionStorage.setItem('teatro-prenotazioni-hint-visto', '1')
+      } catch {}
+    }
+  }, [selectedIds.length, hintVisto])
+
   const handleBookingSuccess = useCallback((codice?: string, codiceNuovo?: boolean) => {
     setSelectedIds([])
     fetchPosti()
+    setCopiedCodice(false)
     if (codice) {
-      setSuccess(
-        codiceNuovo
-          ? `Prenotazione confermata. Il tuo codice prenotazione è: ${codice}. Conservalo per recuperare la prenotazione.`
-          : `Prenotazione confermata. Il tuo codice prenotazione è: ${codice}.`
-      )
-      setTimeout(() => setSuccess(''), 15000)
+      setSuccessMessage(codiceNuovo ? 'Prenotazione confermata.' : 'Prenotazione confermata.')
+      setSuccessCodice(codice)
+      setTimeout(() => {
+        setSuccessMessage('')
+        setSuccessCodice(null)
+      }, 15000)
     } else {
-      setSuccess('Prenotazione confermata.')
-      setTimeout(() => setSuccess(''), 5000)
+      setSuccessMessage('Prenotazione confermata.')
+      setSuccessCodice(null)
+      setTimeout(() => setSuccessMessage(''), 5000)
     }
   }, [fetchPosti])
+
+  const handleCopyCodice = useCallback((codice: string) => {
+    navigator.clipboard.writeText(codice).then(() => {
+      setCopiedCodice(true)
+      setTimeout(() => setCopiedCodice(false), 2500)
+    })
+  }, [])
 
   const formatDataOra = (iso: string | null) => {
     if (!iso) return ''
@@ -132,10 +163,51 @@ function App() {
       </header>
 
       {error && <div className={styles.messageError}>{error}</div>}
-      {success && <div className={styles.messageSuccess}>{success}</div>}
+      {successMessage && !successCodice && (
+        <div className={styles.messageSuccess}>{successMessage}</div>
+      )}
+      {successMessage && successCodice && (
+        <div className={styles.codeBox}>
+          <div className={styles.messageSuccess}>{successMessage}</div>
+          <div className={styles.codeValue}>{successCodice}</div>
+          <button
+            type="button"
+            className={copiedCodice ? styles.copyBtnCopied : styles.copyBtn}
+            onClick={() => handleCopyCodice(successCodice)}
+            aria-live="polite"
+          >
+            {copiedCodice ? 'Copiato!' : 'Copia codice'}
+          </button>
+          <p className={styles.codeHint}>Conservalo: ti servirà con la tua email per recuperare la prenotazione.</p>
+        </div>
+      )}
 
       <main className={styles.main}>
         <div className={styles.mapColumn}>
+          <p className={styles.guidaSelezione}>
+            Clicca sui posti verdi per selezionarli, poi compila il form e conferma.
+          </p>
+          {refreshingMessage && posti.length > 0 && (
+            <p className={styles.refreshingMsg}>Aggiornamento disponibilità…</p>
+          )}
+          {!hintVisto && (
+            <div className={styles.hintBanner} role="status">
+              <span>Clicca su un posto per selezionarlo.</span>
+              <button
+                type="button"
+                className={styles.hintBannerBtn}
+                onClick={() => {
+                  setHintVisto(true)
+                  try {
+                    sessionStorage.setItem('teatro-prenotazioni-hint-visto', '1')
+                  } catch {}
+                }}
+                aria-label="Chiudi"
+              >
+                OK
+              </button>
+            </div>
+          )}
           <TeatroMap
             posti={posti}
             selectedIds={selectedIds}
@@ -144,6 +216,11 @@ function App() {
           />
         </div>
         <div className={styles.formColumn}>
+          {selectedIds.length > 0 && (
+            <p className={styles.notaBlocco}>
+              I posti selezionati sono riservati per 5 minuti. Completa la prenotazione prima della scadenza.
+            </p>
+          )}
           <BookingForm
             posti={posti}
             selectedIds={selectedIds}

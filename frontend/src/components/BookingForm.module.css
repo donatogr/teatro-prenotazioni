@@ -39,6 +39,16 @@
   border-color: #eab308;
 }
 
+.field input:focus-visible {
+  outline: 2px solid #eab308;
+  outline-offset: 2px;
+}
+
+.submit:focus-visible {
+  outline: 2px solid rgba(255, 255, 255, 0.9);
+  outline-offset: 2px;
+}
+
 .field input::placeholder {
   color: rgba(255, 255, 255, 0.4);
 }
@@ -47,6 +57,16 @@
   margin: 0;
   font-size: 0.85rem;
   color: rgba(255, 255, 255, 0.7);
+}
+
+.riepilogo {
+  margin: 0;
+  font-size: 0.9rem;
+  color: rgba(255, 255, 255, 0.9);
+}
+
+.riepilogo strong {
+  font-weight: 700;
 }
 
 .submit {
@@ -59,6 +79,24 @@
   font-size: 1rem;
   cursor: pointer;
   transition: background 0.2s;
+  display: inline-flex;
+  align-items: center;
+  gap: 0.5rem;
+}
+
+.spinner {
+  width: 1rem;
+  height: 1rem;
+  border: 2px solid rgba(255, 255, 255, 0.4);
+  border-top-color: #fff;
+  border-radius: 50%;
+  animation: spin 0.7s linear infinite;
+}
+
+@keyframes spin {
+  to {
+    transform: rotate(360deg);
+  }
 }
 
 .submit:hover:not(:disabled) {

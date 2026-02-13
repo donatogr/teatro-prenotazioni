@@ -22,6 +22,15 @@ const stateClass: Record<PostoStato, string> = {
   bloccato_da_me: styles.selezionato,
 }
 
+const statoLabelIt: Record<PostoStato, string> = {
+  disponibile: 'disponibile',
+  occupato: 'occupato',
+  non_disponibile: 'non disponibile',
+  selezionato: 'selezionato',
+  bloccato: 'bloccato',
+  bloccato_da_me: 'selezionato',
+}
+
 export function Seat({ id, fila, numero, stato, onClick, personColor, tooltipText }: SeatProps) {
   const clickable =
     stato === 'disponibile' || stato === 'selezionato' || stato === 'bloccato_da_me'
@@ -47,7 +56,7 @@ export function Seat({ id, fila, numero, stato, onClick, personColor, tooltipTex
       onClick={clickable ? onClick : undefined}
       disabled={!clickable}
       title={title}
-      aria-label={`Posto ${label}, ${stato}`}
+      aria-label={`Posto ${label}, ${statoLabelIt[stato] ?? stato}`}
     >
       {numero}
     </button>

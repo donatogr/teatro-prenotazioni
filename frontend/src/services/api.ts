@@ -32,7 +32,13 @@ export async function bloccaPosti(
     body: JSON.stringify({ session_id: sessionId, posto_ids: postoIds }),
   });
   const data = await r.json().catch(() => ({}));
-  if (r.status === 409) throw new Error(data.error || 'Alcuni posti non sono più disponibili');
+  if (r.status === 409) {
+    const msg =
+      data.conflitti_etichette?.length > 0
+        ? `Posti ${data.conflitti_etichette.join(', ')} non più disponibili. Scegli altri.`
+        : data.error || 'Alcuni posti non sono più disponibili';
+    throw new Error(msg);
+  }
   if (!r.ok) throw new Error(data.error || 'Errore blocco posti');
   return data;
 }

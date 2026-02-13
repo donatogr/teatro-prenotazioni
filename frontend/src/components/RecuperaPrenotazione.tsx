@@ -5,7 +5,10 @@ import styles from './RecuperaPrenotazione.module.css'
 
 const EMAIL_RE = /^[^\s@]+@[^\s@]+\.[^\s@]+$/
 
+const RECUPERA_TITLE_ID = 'recupera-prenotazione-title'
+
 export function RecuperaPrenotazione() {
+  const [open, setOpen] = useState(false)
   const [email, setEmail] = useState('')
   const [codice, setCodice] = useState('')
   const [loading, setLoading] = useState(false)
@@ -53,8 +56,17 @@ export function RecuperaPrenotazione() {
 
   return (
     <div className={styles.wrapper}>
-      <h3 className={styles.title}>Recupera la tua prenotazione</h3>
-      <div className={styles.content}>
+      <button
+        type="button"
+        id={RECUPERA_TITLE_ID}
+        className={styles.titleBtn}
+        onClick={() => setOpen((o) => !o)}
+        aria-expanded={open}
+      >
+        Hai già prenotato? Recupera con email e codice
+      </button>
+      {open && (
+        <div className={styles.content} role="region" aria-labelledby={RECUPERA_TITLE_ID}>
         <form className={styles.form} onSubmit={handleSubmit}>
           <p className={styles.hint}>Inserisci email e codice ricevuto alla prima prenotazione.</p>
           <div className={styles.field}>
@@ -92,18 +104,19 @@ export function RecuperaPrenotazione() {
             {prenotazioni.length === 0 ? (
               <p className={styles.noPren}>Nessuna prenotazione attiva.</p>
             ) : (
-              <ul className={styles.list}>
+              <div className={styles.cardList}>
                 {prenotazioni.map((p) => (
-                  <li key={p.id} className={styles.item}>
-                    <span className={styles.posto}>{p.posto_fila}{p.posto_numero}</span>
-                    <span className={styles.detail}>{p.nome} – {formatData(p.timestamp)}</span>
-                  </li>
+                  <article key={p.id} className={styles.card}>
+                    <div className={styles.cardPosto}>{p.posto_fila}{p.posto_numero}</div>
+                    <div className={styles.cardDetail}>{p.nome} – {formatData(p.timestamp)}</div>
+                  </article>
                 ))}
-              </ul>
+              </div>
             )}
           </div>
         )}
-      </div>
+        </div>
+      )}
     </div>
   )
 }

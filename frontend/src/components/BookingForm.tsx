@@ -98,11 +98,24 @@ export function BookingForm({
         Posti selezionati: {selectedIds.length}
         {selectedList && ` – ${selectedList}`}
       </p>
+      {selectedIds.length > 0 && (nome.trim() || email.trim()) && (
+        <p className={styles.riepilogo}>
+          Stai prenotando: <strong>{selectedList}</strong>
+          {nome.trim() && (
+            <> per <strong>{nome.trim()}</strong></>
+          )}
+          {email.trim() && (
+            <> ({email.trim()})</>
+          )}
+          .
+        </p>
+      )}
       <button
         type="submit"
         className={styles.submit}
         disabled={disabled || loading || selectedIds.length === 0}
       >
+        {loading && <span className={styles.spinner} aria-hidden />}
         {loading ? 'Prenotazione in corso...' : 'Conferma prenotazione'}
       </button>
     </form>

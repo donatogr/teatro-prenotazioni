@@ -63,6 +63,74 @@
   background: rgba(255, 255, 255, 0.1);
 }
 
+.adminBtn:focus-visible {
+  outline: 2px solid rgba(234, 179, 8, 0.9);
+  outline-offset: 2px;
+}
+
+.pulisciBtn:focus-visible {
+  outline: 2px solid rgba(234, 179, 8, 0.9);
+  outline-offset: 2px;
+}
+
+.codeBox {
+  padding: 1rem 1.25rem;
+  background: rgba(34, 197, 94, 0.15);
+  border: 1px solid #22c55e;
+  border-radius: 12px;
+  margin-bottom: 1rem;
+  display: flex;
+  flex-direction: column;
+  gap: 0.75rem;
+}
+
+.codeValue {
+  font-family: ui-monospace, monospace;
+  font-size: 1.5rem;
+  font-weight: 700;
+  letter-spacing: 0.2em;
+  color: #fff;
+}
+
+.copyBtn {
+  padding: 0.5rem 1rem;
+  border-radius: 8px;
+  border: 1px solid rgba(255, 255, 255, 0.4);
+  background: rgba(255, 255, 255, 0.15);
+  color: #fff;
+  font-size: 0.9rem;
+  font-weight: 600;
+  cursor: pointer;
+  align-self: flex-start;
+}
+
+.copyBtn:hover {
+  background: rgba(255, 255, 255, 0.25);
+}
+
+.copyBtn:focus-visible {
+  outline: 2px solid rgba(234, 179, 8, 0.9);
+  outline-offset: 2px;
+}
+
+.copyBtnCopied {
+  padding: 0.5rem 1rem;
+  border-radius: 8px;
+  border: 1px solid #22c55e;
+  background: rgba(34, 197, 94, 0.3);
+  color: #86efac;
+  font-size: 0.9rem;
+  font-weight: 600;
+  cursor: default;
+  align-self: flex-start;
+}
+
+.codeHint {
+  margin: 0;
+  font-size: 0.85rem;
+  color: rgba(255, 255, 255, 0.8);
+}
+
 .messageError {
   padding: 0.75rem 1rem;
   background: rgba(239, 68, 68, 0.2);
@@ -94,10 +162,61 @@
   gap: 0.75rem;
 }
 
+.refreshingMsg {
+  margin: 0;
+  font-size: 0.85rem;
+  color: rgba(255, 255, 255, 0.75);
+}
+
+.guidaSelezione {
+  margin: 0;
+  font-size: 0.9rem;
+  color: rgba(255, 255, 255, 0.9);
+}
+
+.hintBanner {
+  display: flex;
+  align-items: center;
+  gap: 0.75rem;
+  padding: 0.5rem 0.75rem;
+  background: rgba(234, 179, 8, 0.2);
+  border: 1px solid rgba(234, 179, 8, 0.5);
+  border-radius: 8px;
+  font-size: 0.9rem;
+  color: rgba(255, 255, 255, 0.95);
+}
+
+.hintBannerBtn {
+  margin-left: auto;
+  padding: 0.25rem 0.6rem;
+  border-radius: 6px;
+  border: 1px solid rgba(255, 255, 255, 0.4);
+  background: rgba(255, 255, 255, 0.15);
+  color: #fff;
+  font-size: 0.85rem;
+  cursor: pointer;
+}
+
+.hintBannerBtn:hover {
+  background: rgba(255, 255, 255, 0.25);
+}
+
+.hintBannerBtn:focus-visible {
+  outline: 2px solid rgba(234, 179, 8, 0.9);
+  outline-offset: 2px;
+}
+
 .formColumn {
   display: flex;
   flex-direction: column;
   gap: 0.75rem;
+}
+
+.notaBlocco {
+  margin: 0;
+  font-size: 0.9rem;
+  color: rgba(255, 255, 255, 0.85);
+  max-width: 360px;
 }
 
 .pulisciBtn {
