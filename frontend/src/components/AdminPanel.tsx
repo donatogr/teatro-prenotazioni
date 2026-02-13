@@ -29,9 +29,10 @@ function espandiLettere(lettere: string): string[] {
   return s.split(',').map((x) => x.trim()).filter(Boolean)
 }
 
+/** Solo tonalità di rosso per distinguere le persone nella mappa admin. */
 const PERSON_COLORS = [
-  '#e11d48', '#2563eb', '#059669', '#d97706', '#7c3aed',
-  '#dc2626', '#0284c7', '#16a34a', '#ca8a04', '#9333ea',
+  '#e11d48', '#dc2626', '#b91c1c', '#991b1b', '#7f1d1d',
+  '#f87171', '#ef4444', '#be123c', '#9f1239', '#881337',
 ]
 
 type Tab = 'spettacolo' | 'teatro' | 'mappa' | 'blocca'
@@ -96,6 +97,7 @@ export function AdminPanel({ onClose, onFileChange }: AdminPanelProps) {
       loadExport()
     }
     if (tab === 'blocca') loadPosti()
+    loadExport()
   }, [authenticated, tab, loadImpostazioni, loadPosti, loadExport])
 
   const byFila = useMemo(() => {
@@ -334,51 +336,107 @@ export function AdminPanel({ onClose, onFileChange }: AdminPanelProps) {
         {error && <p className={styles.error}>{error}</p>}
         {success && <p className={styles.success}>{success}</p>}
 
-        {tab === 'spettacolo' && (
-          <SpettacoloForm
-            imp={imp}
-            saving={saving}
-            onSave={saveSpettacolo}
-          />
-        )}
+        <div className={styles.adminLayout}>
+          <div className={styles.adminMain}>
+            {tab === 'spettacolo' && (
+              <SpettacoloForm
+                imp={imp}
+                saving={saving}
+                onSave={saveSpettacolo}
+              />
+            )}
 
-        {tab === 'teatro' && (
-          <TeatroForm
-            imp={imp}
-            saving={saving}
-            onSave={saveTeatro}
-            onGeneraPosti={handleGeneraPosti}
-          />
-        )}
+            {tab === 'teatro' && (
+              <TeatroForm
+                imp={imp}
+                saving={saving}
+                onSave={saveTeatro}
+                onGeneraPosti={handleGeneraPosti}
+              />
+            )}
 
-        {tab === 'mappa' && (
-          <MappaPrenotazioni
-            posti={posti}
-            byFila={byFila}
-            sezioni={sezioniAdmin}
-            personColorMap={personColorMap}
-            exportData={exportData}
-            loading={loading}
-            onLoadExport={loadExport}
-            onExportPdf={exportPdf}
-            onStampaLista={stampaLista}
-          />
-        )}
+            {tab === 'mappa' && (
+              <MappaPrenotazioni
+                posti={posti}
+                byFila={byFila}
+                sezioni={sezioniAdmin}
+                personColorMap={personColorMap}
+                loading={loading}
+              />
+            )}
 
-        {tab === 'blocca' && (
-          <BloccaPosti
-            posti={posti}
-            byFila={byFila}
-            sezioni={sezioniAdmin}
-            loading={loading}
-            onToggleFila={toggleFila}
-            onTogglePosto={togglePosto}
-          />
-        )}
+            {tab === 'blocca' && (
+              <BloccaPosti
+                posti={posti}
+                byFila={byFila}
+                sezioni={sezioniAdmin}
+                loading={loading}
+                onToggleFila={toggleFila}
+                onTogglePosto={togglePosto}
+              />
+            )}
 
-        <button type="button" className={styles.closeBtn} onClick={onClose}>
-          Chiudi
-        </button>
+            <button type="button" className={styles.closeBtn} onClick={onClose}>
+              Chiudi
+            </button>
+          </div>
+
+          <aside className={styles.adminSidebar}>
+            <h3 className={styles.sidebarTitle}>Elenco prenotazioni</h3>
+            <button
+              type="button"
+              className={styles.exportLoadBtn}
+              onClick={loadExport}
+            >
+              Aggiorna lista
+            </button>
+            {exportData && (
+              <>
+                <div className={styles.exportTableWrap}>
+                  <table className={styles.exportTable}>
+                    <thead>
+                      <tr>
+                        <th>Nome</th>
+                        <th>Allieva</th>
+                        <th>Email</th>
+                        <th>N.</th>
+                        <th>Posti</th>
+                      </tr>
+                    </thead>
+                    <tbody>
+                      {exportData.byPerson.map((r, i) => {
+                        const personKey = `${r.nome}\0${r.email}`
+                        const cellColor = personColorMap.get(personKey)
+                        return (
+                          <tr key={i}>
+                            <td>{r.nome}</td>
+                            <td>{r.nome_allieva ?? ''}</td>
+                            <td>{r.email}</td>
+                            <td
+                              className={cellColor ? styles.countCellColored : undefined}
+                              style={cellColor ? { backgroundColor: cellColor, borderColor: cellColor } : undefined}
+                            >
+                              {r.count}
+                            </td>
+                            <td>{r.posti.join(', ')}</td>
+                          </tr>
+                        )
+                      })}
+                    </tbody>
+                  </table>
+                </div>
+                <div className={styles.buttonRow}>
+                  <button type="button" className={styles.pdfBtn} onClick={exportPdf}>
+                    Esporta PDF
+                  </button>
+                  <button type="button" className={styles.printBtn} onClick={stampaLista}>
+                    Stampa lista
+                  </button>
+                </div>
+              </>
+            )}
+          </aside>
+        </div>
       </div>
     </div>
   )
@@ -565,21 +623,13 @@ function MappaPrenotazioni({
   byFila,
   sezioni,
   personColorMap,
-  exportData,
   loading,
-  onLoadExport,
-  onExportPdf,
-  onStampaLista,
 }: {
   posti: Posto[]
   byFila: Record<string, Posto[]>
   sezioni: { nomeGruppo: string | null; file: string[] }[]
   personColorMap: Map<string, string>
-  exportData: { bySeat: ExportBySeat[]; byPerson: ExportByPerson[] } | null
   loading: boolean
-  onLoadExport: () => void
-  onExportPdf: () => void
-  onStampaLista: () => void
 }) {
   return (
     <div className={styles.formSection}>
@@ -639,46 +689,6 @@ function MappaPrenotazioni({
           </div>
         </div>
       )}
-      <div className={styles.exportSection}>
-        <button type="button" className={styles.exportLoadBtn} onClick={onLoadExport}>
-          Aggiorna lista prenotazioni
-        </button>
-        {exportData && (
-          <>
-            <h3>Per persona</h3>
-            <table className={styles.exportTable}>
-              <thead>
-                <tr>
-                  <th>Nome</th>
-                  <th>Allieva</th>
-                  <th>Email</th>
-                  <th>N. posti</th>
-                  <th>Posti</th>
-                </tr>
-              </thead>
-              <tbody>
-                {exportData.byPerson.map((r, i) => (
-                  <tr key={i}>
-                    <td>{r.nome}</td>
-                    <td>{r.nome_allieva ?? ''}</td>
-                    <td>{r.email}</td>
-                    <td>{r.count}</td>
-                    <td>{r.posti.join(', ')}</td>
-                  </tr>
-                ))}
-              </tbody>
-            </table>
-            <div className={styles.buttonRow}>
-              <button type="button" className={styles.pdfBtn} onClick={onExportPdf}>
-                Esporta PDF
-              </button>
-              <button type="button" className={styles.printBtn} onClick={onStampaLista}>
-                Stampa lista
-              </button>
-            </div>
-          </>
-        )}
-      </div>
     </div>
   )
 }

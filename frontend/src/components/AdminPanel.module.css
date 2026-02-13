@@ -98,16 +98,53 @@
   background: #1e293b;
   padding: 1.5rem;
   border-radius: 12px;
-  max-width: 900px;
-  width: 95%;
-  max-height: 90vh;
-  overflow-y: auto;
+  max-width: 1400px;
+  width: 98%;
+  max-height: 92vh;
+  display: flex;
+  flex-direction: column;
   border: 1px solid rgba(255, 255, 255, 0.1);
 }
 
 .panelAdmin h2 {
   margin: 0 0 1rem 0;
   font-size: 1.25rem;
+}
+
+.adminLayout {
+  display: flex;
+  gap: 1.5rem;
+  flex: 1;
+  min-height: 0;
+  margin-top: 0.25rem;
+}
+
+.adminMain {
+  flex: 1;
+  min-width: 0;
+  overflow-y: auto;
+}
+
+.adminSidebar {
+  width: 380px;
+  flex-shrink: 0;
+  overflow-y: auto;
+  border-left: 1px solid rgba(255, 255, 255, 0.15);
+  padding-left: 1.25rem;
+}
+
+.sidebarTitle {
+  font-size: 1rem;
+  font-weight: 600;
+  margin: 0 0 0.75rem 0;
+  color: rgba(255, 255, 255, 0.95);
+}
+
+.exportTableWrap {
+  margin: 0.75rem 0;
+  overflow-x: auto;
+  max-height: 60vh;
+  overflow-y: auto;
 }
 
 .tabs {
@@ -293,6 +330,12 @@
 
 .exportTable th {
   background: rgba(0, 0, 0, 0.3);
+}
+
+.countCellColored {
+  color: #fff;
+  font-weight: 600;
+  text-align: center;
 }
 
 .pdfBtn {

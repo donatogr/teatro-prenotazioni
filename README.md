@@ -51,6 +51,17 @@ python run.py
 
 Il server è su http://127.0.0.1:5000. La prima esecuzione crea il database SQLite e popola i posti (teatro medio: ~15 file, 8-12 posti per fila).
 
+### Dati di esempio
+
+Per inserire nel DB impostazioni di esempio (Teatro Verdi, spettacolo, gruppi Platea/Galleria) e alcune prenotazioni fittizie:
+
+```bash
+cd backend
+python seed_example_data.py
+```
+
+Lo script aggiorna sempre le impostazioni; crea i posti solo se la tabella è vuota e aggiunge prenotazioni solo se non ne esistono già. Utile per provare l’app senza configurare tutto a mano.
+
 ## Frontend
 
 ```bash
