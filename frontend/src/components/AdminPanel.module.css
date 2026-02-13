@@ -153,6 +153,19 @@
   gap: 0.35rem;
 }
 
+.adminSection {
+  display: flex;
+  flex-direction: column;
+  gap: 0.25rem;
+}
+
+.sectionTitle {
+  margin: 0.5rem 0 0.15rem 0;
+  font-size: 0.95rem;
+  font-weight: 600;
+  color: rgba(255, 255, 255, 0.85);
+}
+
 .adminRow {
   display: flex;
   align-items: center;

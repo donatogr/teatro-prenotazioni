@@ -12,6 +12,23 @@ import {
 import type { Posto, ExportBySeat, ExportByPerson, Impostazioni, GruppoFile } from '../types'
 import styles from './AdminPanel.module.css'
 
+/** Espande "A-G" in [A,B,...,G] o "A,B,C" in lista (per raggruppamento file). */
+function espandiLettere(lettere: string): string[] {
+  const s = (lettere || '').trim()
+  if (!s) return []
+  if (s.includes('-')) {
+    const [a, b] = s.split('-').map((x) => x.trim())
+    if (!a || !b || a.length > 1 || b.length > 1) return []
+    const start = a.charCodeAt(0)
+    const end = b.charCodeAt(0)
+    if (start > end) return []
+    const out: string[] = []
+    for (let i = start; i <= end; i++) out.push(String.fromCharCode(i))
+    return out
+  }
+  return s.split(',').map((x) => x.trim()).filter(Boolean)
+}
+
 const PERSON_COLORS = [
   '#e11d48', '#2563eb', '#059669', '#d97706', '#7c3aed',
   '#dc2626', '#0284c7', '#16a34a', '#ca8a04', '#9333ea',
@@ -89,6 +106,24 @@ export function AdminPanel({ onClose, onFileChange }: AdminPanelProps) {
     })
     return acc
   }, [posti])
+
+  /** Sezioni per raggruppamento file (come in TeatroMap). Usa impostazioni.gruppi_file. */
+  const sezioniAdmin = useMemo(() => {
+    const gruppiFile = impostazioni?.gruppi_file ?? []
+    const tutteLeFile = Object.keys(byFila).sort()
+    if (!gruppiFile.length) return [{ nomeGruppo: null as string | null, file: tutteLeFile }]
+    const assegnate = new Set<string>()
+    const result: { nomeGruppo: string | null; file: string[] }[] = []
+    for (const g of gruppiFile) {
+      const lettere = espandiLettere(g.lettere)
+      const fileInGruppo = lettere.filter((f) => byFila[f]).sort()
+      fileInGruppo.forEach((f) => assegnate.add(f))
+      if (fileInGruppo.length) result.push({ nomeGruppo: g.nome || g.lettere, file: fileInGruppo })
+    }
+    const altre = tutteLeFile.filter((f) => !assegnate.has(f))
+    if (altre.length) result.push({ nomeGruppo: 'Altri', file: altre })
+    return result
+  }, [impostazioni?.gruppi_file, byFila])
 
   const personColorMap = useMemo(() => {
     const m = new Map<string, string>()
@@ -320,6 +355,7 @@ export function AdminPanel({ onClose, onFileChange }: AdminPanelProps) {
           <MappaPrenotazioni
             posti={posti}
             byFila={byFila}
+            sezioni={sezioniAdmin}
             personColorMap={personColorMap}
             exportData={exportData}
             loading={loading}
@@ -333,6 +369,7 @@ export function AdminPanel({ onClose, onFileChange }: AdminPanelProps) {
           <BloccaPosti
             posti={posti}
             byFila={byFila}
+            sezioni={sezioniAdmin}
             loading={loading}
             onToggleFila={toggleFila}
             onTogglePosto={togglePosto}
@@ -526,6 +563,7 @@ function TeatroForm({
 function MappaPrenotazioni({
   posti,
   byFila,
+  sezioni,
   personColorMap,
   exportData,
   loading,
@@ -535,6 +573,7 @@ function MappaPrenotazioni({
 }: {
   posti: Posto[]
   byFila: Record<string, Posto[]>
+  sezioni: { nomeGruppo: string | null; file: string[] }[]
   personColorMap: Map<string, string>
   exportData: { bySeat: ExportBySeat[]; byPerson: ExportByPerson[] } | null
   loading: boolean
@@ -542,54 +581,59 @@ function MappaPrenotazioni({
   onExportPdf: () => void
   onStampaLista: () => void
 }) {
-  const file = Object.keys(byFila).sort()
-
   return (
     <div className={styles.formSection}>
       <p className={styles.hint}>
         Mappa con posti colorati per persona. Lista prenotazioni sotto.
       </p>
       {loading && <p>Caricamento...</p>}
-      {!loading && file.length > 0 && (
+      {!loading && sezioni.some((s) => s.file.length > 0) && (
         <div className={styles.adminGridWrap}>
           <div className={styles.adminGrid}>
-            {file.map((fila) => (
-              <div key={fila} className={styles.adminRow}>
-                <span className={styles.filaLabel}>{fila}</span>
-                <div className={styles.adminSeats}>
-                  {byFila[fila]
-                    .sort((a, b) => b.numero - a.numero)
-                    .map((posto) => {
-                      const occupato = posto.stato === 'occupato'
-                      const personKey =
-                        occupato
-                          ? `${posto.prenotazione_nome ?? ''}\0${posto.prenotazione_email ?? ''}`
-                          : ''
-                      const color = occupato ? personColorMap.get(personKey) : undefined
-                      return (
-                        <span
-                          key={posto.id}
-                          className={
+            {sezioni.map((sez, idx) => (
+              <div key={sez.nomeGruppo ?? `sez-${idx}`} className={styles.adminSection}>
+                {sez.nomeGruppo != null && (
+                  <h4 className={styles.sectionTitle}>{sez.nomeGruppo}</h4>
+                )}
+                {sez.file.map((fila) => (
+                  <div key={fila} className={styles.adminRow}>
+                    <span className={styles.filaLabel}>{fila}</span>
+                    <div className={styles.adminSeats}>
+                      {byFila[fila]
+                        .sort((a, b) => b.numero - a.numero)
+                        .map((posto) => {
+                          const occupato = posto.stato === 'occupato'
+                          const personKey =
                             occupato
-                              ? styles.seatOccupato
-                              : posto.riservato_staff
-                                ? styles.seatRiservato
-                                : styles.seatDisponibile
-                          }
-                          style={color ? { backgroundColor: color, borderColor: color } : undefined}
-                          title={
-                            occupato
-                              ? `Prenotato: ${posto.prenotazione_nome ?? ''}${posto.prenotazione_nome_allieva ? ` – Allieva: ${posto.prenotazione_nome_allieva}` : ''} ${posto.prenotazione_email ?? ''}`.trim()
-                              : posto.riservato_staff
-                                ? 'Riservato staff'
-                                : 'Disponibile'
-                          }
-                        >
-                          {posto.numero}
-                        </span>
-                      )
-                    })}
-                </div>
+                              ? `${posto.prenotazione_nome ?? ''}\0${posto.prenotazione_email ?? ''}`
+                              : ''
+                          const color = occupato ? personColorMap.get(personKey) : undefined
+                          return (
+                            <span
+                              key={posto.id}
+                              className={
+                                occupato
+                                  ? styles.seatOccupato
+                                  : posto.riservato_staff
+                                    ? styles.seatRiservato
+                                    : styles.seatDisponibile
+                              }
+                              style={color ? { backgroundColor: color, borderColor: color } : undefined}
+                              title={
+                                occupato
+                                  ? `Prenotato: ${posto.prenotazione_nome ?? ''}${posto.prenotazione_nome_allieva ? ` – Allieva: ${posto.prenotazione_nome_allieva}` : ''} ${posto.prenotazione_email ?? ''}`.trim()
+                                  : posto.riservato_staff
+                                    ? 'Riservato staff'
+                                    : 'Disponibile'
+                              }
+                            >
+                              {posto.numero}
+                            </span>
+                          )
+                        })}
+                    </div>
+                  </div>
+                ))}
               </div>
             ))}
           </div>
@@ -642,74 +686,82 @@ function MappaPrenotazioni({
 function BloccaPosti({
   posti,
   byFila,
+  sezioni,
   loading,
   onToggleFila,
   onTogglePosto,
 }: {
   posti: Posto[]
   byFila: Record<string, Posto[]>
+  sezioni: { nomeGruppo: string | null; file: string[] }[]
   loading: boolean
   onToggleFila: (fila: string) => void
   onTogglePosto: (posto: Posto) => void
 }) {
-  const file = Object.keys(byFila).sort()
-
   return (
     <div className={styles.formSection}>
       <p className={styles.hint}>
         Clicca sulla <strong>lettera della fila</strong> per bloccare/sbloccare tutta la fila. Clicca su un <strong>posto libero</strong> per bloccarlo singolarmente (riservato staff). I posti prenotati non sono modificabili.
       </p>
       {loading && <p>Caricamento...</p>}
-      {!loading && file.length > 0 && (
+      {!loading && sezioni.some((s) => s.file.length > 0) && (
         <div className={styles.adminGridWrap}>
           <div className={styles.adminGrid}>
-            {file.map((fila) => {
-              const postiInFila = byFila[fila] ?? []
-              const filaBloccata = postiInFila.length > 0 && postiInFila.every((p) => p.riservato_staff)
-              return (
-              <div key={fila} className={styles.adminRow}>
-                <button
-                  type="button"
-                  className={filaBloccata ? `${styles.filaLabelBtn} ${styles.filaLabelBtnRiservata}` : styles.filaLabelBtn}
-                  onClick={() => onToggleFila(fila)}
-                  title={filaBloccata ? `Fila ${fila} bloccata. Clicca per sbloccare tutta la fila` : `Fila ${fila} libera. Clicca per bloccare tutta la fila`}
-                >
-                  {fila}
-                </button>
-                <div className={styles.adminSeats}>
-                  {byFila[fila]
-                    .sort((a, b) => b.numero - a.numero)
-                    .map((posto) => {
-                      const occupato = posto.stato === 'occupato'
-                      const isRiservato = posto.riservato_staff
-                      return (
-                        <button
-                          key={posto.id}
-                          type="button"
-                          className={
-                            occupato
-                              ? styles.seatOccupato
-                              : isRiservato
-                                ? styles.seatRiservato
-                                : styles.seatDisponibile
-                          }
-                          disabled={occupato}
-                          title={
-                            occupato
-                              ? `Prenotato: ${posto.prenotazione_nome ?? ''}${posto.prenotazione_nome_allieva ? ` – Allieva: ${posto.prenotazione_nome_allieva}` : ''}`.trim()
-                              : isRiservato
-                                ? 'Clicca per liberare'
-                                : 'Clicca per bloccare'
-                          }
-                          onClick={() => !occupato && onTogglePosto(posto)}
-                        >
-                          {posto.numero}
-                        </button>
-                      )
-                    })}
-                </div>
+            {sezioni.map((sez, idx) => (
+              <div key={sez.nomeGruppo ?? `sez-${idx}`} className={styles.adminSection}>
+                {sez.nomeGruppo != null && (
+                  <h4 className={styles.sectionTitle}>{sez.nomeGruppo}</h4>
+                )}
+                {sez.file.map((fila) => {
+                  const postiInFila = byFila[fila] ?? []
+                  const filaBloccata = postiInFila.length > 0 && postiInFila.every((p) => p.riservato_staff)
+                  return (
+                    <div key={fila} className={styles.adminRow}>
+                      <button
+                        type="button"
+                        className={filaBloccata ? `${styles.filaLabelBtn} ${styles.filaLabelBtnRiservata}` : styles.filaLabelBtn}
+                        onClick={() => onToggleFila(fila)}
+                        title={filaBloccata ? `Fila ${fila} bloccata. Clicca per sbloccare tutta la fila` : `Fila ${fila} libera. Clicca per bloccare tutta la fila`}
+                      >
+                        {fila}
+                      </button>
+                      <div className={styles.adminSeats}>
+                        {byFila[fila]
+                          .sort((a, b) => b.numero - a.numero)
+                          .map((posto) => {
+                            const occupato = posto.stato === 'occupato'
+                            const isRiservato = posto.riservato_staff
+                            return (
+                              <button
+                                key={posto.id}
+                                type="button"
+                                className={
+                                  occupato
+                                    ? styles.seatOccupato
+                                    : isRiservato
+                                      ? styles.seatRiservato
+                                      : styles.seatDisponibile
+                                }
+                                disabled={occupato}
+                                title={
+                                  occupato
+                                    ? `Prenotato: ${posto.prenotazione_nome ?? ''}${posto.prenotazione_nome_allieva ? ` – Allieva: ${posto.prenotazione_nome_allieva}` : ''}`.trim()
+                                    : isRiservato
+                                      ? 'Clicca per liberare'
+                                      : 'Clicca per bloccare'
+                                }
+                                onClick={() => !occupato && onTogglePosto(posto)}
+                              >
+                                {posto.numero}
+                              </button>
+                            )
+                          })}
+                      </div>
+                    </div>
+                  )
+                })}
               </div>
-            )})}
+            ))}
           </div>
         </div>
       )}
