@@ -1,5 +1,5 @@
 import { describe, it, expect, vi, beforeEach } from 'vitest'
-import { render, screen } from '@testing-library/react'
+import { render, screen, waitFor } from '@testing-library/react'
 import userEvent from '@testing-library/user-event'
 import * as api from '../services/api'
 import { BookingForm } from './BookingForm'
@@ -65,7 +65,7 @@ describe('BookingForm', () => {
   })
 
   it('chiama creaPrenotazione e onSuccess al submit con dati validi', async () => {
-    const user = userEvent.setup()
+    const user = userEvent.setup({ delay: null })
     vi.spyOn(api, 'creaPrenotazione').mockResolvedValue({
       prenotazioni: [],
       codice: '123456',
@@ -75,13 +75,19 @@ describe('BookingForm', () => {
     render(
       <BookingForm posti={[{ id: 1, fila: 'A', numero: 1, disponibile: true, riservato_staff: false, stato: 'disponibile' }]} selectedIds={[1]} onSuccess={onSuccess} onError={onError} />
     )
-    await user.type(screen.getByPlaceholderText(/nome e cognome/i), 'Mario Rossi')
-    await user.type(screen.getByLabelText(/email/i), 'mario@test.it')
+    const nomeInput = screen.getByPlaceholderText(/nome e cognome/i)
+    const emailInput = screen.getByLabelText(/email/i)
+    await user.type(nomeInput, 'Mario Rossi')
+    await user.type(emailInput, 'mario@test.it')
 
-    const form = screen.getByRole('button', { name: /conferma/i }).closest('form')!
-    form.requestSubmit()
+    await waitFor(() => {
+      expect((nomeInput as HTMLInputElement).value).toBe('Mario Rossi')
+      expect((emailInput as HTMLInputElement).value).toBe('mario@test.it')
+    })
 
-    await vi.waitFor(() => {
+    await user.click(screen.getByRole('button', { name: /conferma/i }))
+
+    await waitFor(() => {
       expect(onSuccess).toHaveBeenCalledWith('123456', true)
     })
     expect(api.creaPrenotazione).toHaveBeenCalledWith(

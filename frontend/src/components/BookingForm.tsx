@@ -59,7 +59,7 @@ export function BookingForm({
     setLoading(true)
     onError('')
     try {
-      const res = await creaPrenotazione(selectedIds, n, nomeAllievaVal, eVal, sessionId)
+      const res = await creaPrenotazione(selectedIds, n, nomeAllieva.trim(), eVal, sessionId)
       setNome('')
       setNomeAllieva('')
       setEmail('')
