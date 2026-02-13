@@ -25,24 +25,6 @@ function espandiLettere(lettere: string): string[] {
   return s.split(',').map((x) => x.trim()).filter(Boolean)
 }
 
-const PERSON_COLORS = [
-  '#e11d48', '#2563eb', '#059669', '#d97706', '#7c3aed',
-  '#dc2626', '#0284c7', '#16a34a', '#ca8a04', '#9333ea',
-]
-
-function hashPerson(nome: string, email: string): number {
-  let h = 0
-  const s = nome + '\0' + email
-  for (let i = 0; i < s.length; i++) h = (h << 5) - h + s.charCodeAt(i)
-  return Math.abs(h)
-}
-
-function getPersonColor(nome?: string, email?: string): string | undefined {
-  if (nome == null && email == null) return undefined
-  const h = hashPerson(nome ?? '', email ?? '')
-  return PERSON_COLORS[h % PERSON_COLORS.length]
-}
-
 interface TeatroMapProps {
   posti: Posto[]
   selectedIds: number[]
@@ -94,17 +76,6 @@ export function TeatroMap({
     return result
   }, [gruppiFile, tutteLeFile])
 
-  const personColorMap = useMemo(() => {
-    const m = new Map<string, string>()
-    posti.forEach((p) => {
-      if (p.stato === 'occupato' && (p.prenotazione_nome != null || p.prenotazione_email != null)) {
-        const key = `${p.prenotazione_nome ?? ''}\0${p.prenotazione_email ?? ''}`
-        if (!m.has(key)) m.set(key, getPersonColor(p.prenotazione_nome, p.prenotazione_email)!)
-      }
-    })
-    return m
-  }, [posti])
-
   return (
     <div className={styles.wrapper}>
       <div
@@ -136,10 +107,6 @@ export function TeatroMap({
                           posto.stato === 'bloccato_da_me'
                             ? 'selezionato'
                             : posto.stato
-                        const personKey =
-                          posto.stato === 'occupato'
-                            ? `${posto.prenotazione_nome ?? ''}\0${posto.prenotazione_email ?? ''}`
-                            : ''
                         return (
                           <Seat
                             key={posto.id}
@@ -148,7 +115,7 @@ export function TeatroMap({
                             numero={posto.numero}
                             stato={displayStato}
                             onClick={() => handleSeatClick(posto)}
-                            personColor={personKey ? personColorMap.get(personKey) : undefined}
+                            personColor={undefined}
                           />
                         )
                       })}
@@ -163,8 +130,7 @@ export function TeatroMap({
       <div className={styles.legend}>
         <span className={styles.legItem}><i className={styles.legDisponibile} /> Disponibile</span>
         <span className={styles.legItem}><i className={styles.legSelezionato} /> Selezionato</span>
-        <span className={styles.legItem}><i className={styles.legOccupato} /> Occupato</span>
-        <span className={styles.legItem}><i className={styles.legBloccato} /> Bloccato</span>
+        <span className={styles.legItem}><i className={styles.legOccupato} /> Prenotato</span>
         <span className={styles.legItem}><i className={styles.legNonDisp} /> Non disponibile</span>
       </div>
     </div>

@@ -54,6 +54,11 @@ export function AdminPanel({ onClose, onFileChange }: AdminPanelProps) {
   const [exportData, setExportData] = useState<{ bySeat: ExportBySeat[]; byPerson: ExportByPerson[] } | null>(null)
   const [loading, setLoading] = useState(false)
   const [saving, setSaving] = useState(false)
+  const [toastMessage, setToastMessage] = useState('')
+  const [exportLoading, setExportLoading] = useState(false)
+  const [exportSearch, setExportSearch] = useState('')
+  type SortKey = 'nome' | 'email' | 'count'
+  const [exportSort, setExportSort] = useState<{ key: SortKey; dir: 1 | -1 } | null>(null)
 
   const loadPosti = useCallback(() => {
     if (!password) return
@@ -73,8 +78,18 @@ export function AdminPanel({ onClose, onFileChange }: AdminPanelProps) {
 
   const loadExport = useCallback(() => {
     if (!password) return
-    getExportData(password).then(setExportData).catch(() => setExportData(null))
+    setExportLoading(true)
+    getExportData(password)
+      .then(setExportData)
+      .catch(() => setExportData(null))
+      .finally(() => setExportLoading(false))
   }, [password])
+
+  useEffect(() => {
+    if (!toastMessage) return
+    const t = setTimeout(() => setToastMessage(''), 3000)
+    return () => clearTimeout(t)
+  }, [toastMessage])
 
   const checkAuth = useCallback(() => {
     if (!password) return
@@ -139,6 +154,38 @@ export function AdminPanel({ onClose, onFileChange }: AdminPanelProps) {
     return m
   }, [posti])
 
+  const exportFilteredAndSorted = useMemo(() => {
+    if (!exportData?.byPerson.length) return []
+    const q = exportSearch.trim().toLowerCase()
+    let list = q
+      ? exportData.byPerson.filter(
+          (r) =>
+            (r.nome ?? '').toLowerCase().includes(q) ||
+            (r.nome_allieva ?? '').toLowerCase().includes(q) ||
+            (r.email ?? '').toLowerCase().includes(q)
+        )
+      : [...exportData.byPerson]
+    if (exportSort) {
+      list = [...list].sort((a, b) => {
+        const cmp =
+          exportSort.key === 'count'
+            ? a.count - b.count
+            : (exportSort.key === 'nome' ? (a.nome ?? '') : (a.email ?? '')).localeCompare(
+                exportSort.key === 'nome' ? (b.nome ?? '') : (b.email ?? '')
+              )
+        return exportSort.dir * cmp
+      })
+    }
+    return list
+  }, [exportData?.byPerson, exportSearch, exportSort])
+
+  const exportSummary = useMemo(() => {
+    if (!exportData) return null
+    const nPersone = exportData.byPerson.length
+    const nPosti = exportData.byPerson.reduce((s, r) => s + r.count, 0)
+    return { nPersone, nPosti }
+  }, [exportData])
+
   const toggleFila = async (fila: string) => {
     const postiInFila = posti.filter((p) => p.fila === fila)
     const next = !postiInFila.some((p) => p.riservato_staff)
@@ -169,9 +216,9 @@ export function AdminPanel({ onClose, onFileChange }: AdminPanelProps) {
     setError('')
     try {
       await putImpostazioni(password, form)
-      setSuccess('Salvato')
+      setSuccess('')
+      setToastMessage('Salvato')
       loadImpostazioni()
-      setTimeout(() => setSuccess(''), 2000)
     } catch (e) {
       setError(e instanceof Error ? e.message : 'Errore')
     } finally {
@@ -184,9 +231,9 @@ export function AdminPanel({ onClose, onFileChange }: AdminPanelProps) {
     setError('')
     try {
       await putImpostazioni(password, form)
-      setSuccess('Salvato')
+      setSuccess('')
+      setToastMessage('Salvato')
       loadImpostazioni()
-      setTimeout(() => setSuccess(''), 2000)
     } catch (e) {
       setError(e instanceof Error ? e.message : 'Errore')
     } finally {
@@ -195,15 +242,16 @@ export function AdminPanel({ onClose, onFileChange }: AdminPanelProps) {
   }
 
   const handleGeneraPosti = async () => {
-    if (!window.confirm('Generare la mappa teatro? I posti esistenti saranno sostituiti (solo se non ci sono prenotazioni).')) return
+    const n = (impostazioni?.numero_file ?? 0) * (impostazioni?.posti_per_fila ?? 0)
+    if (!window.confirm(`Verranno creati ${n} posti. I posti esistenti saranno sostituiti (solo se non ci sono prenotazioni). Continuare?`)) return
     setError('')
     try {
       const r = await generaPosti(password)
-      setSuccess(`Creati ${r.creati} posti`)
+      setToastMessage(`Creati ${r.creati} posti`)
+      setTab('mappa')
       loadPosti()
       loadImpostazioni()
       onFileChange?.()
-      setTimeout(() => setSuccess(''), 3000)
     } catch (e) {
       setError(e instanceof Error ? e.message : 'Errore')
     }
@@ -245,6 +293,7 @@ export function AdminPanel({ onClose, onFileChange }: AdminPanelProps) {
         y += lineH
       })
       doc.save('prenotazioni-teatro.pdf')
+      setToastMessage('PDF scaricato')
     })
   }
 
@@ -269,29 +318,43 @@ export function AdminPanel({ onClose, onFileChange }: AdminPanelProps) {
     win.document.close()
     win.print()
     win.close()
+    setToastMessage('Apri la finestra di stampa per stampare')
   }
 
   if (!authenticated) {
+    const authError = error ? (error.includes('autorizzato') || error === 'Non autorizzato' ? 'Password errata. Riprova.' : error) : ''
     return (
       <div className={styles.overlay}>
         <div className={styles.panel}>
-          <h2>Admin</h2>
+          <div className={styles.panelHeader}>
+            <h2>Accesso amministrazione</h2>
+            <button
+              type="button"
+              className={styles.closeBtnHeader}
+              onClick={onClose}
+              aria-label="Chiudi"
+            >
+              ×
+            </button>
+          </div>
           <div className={styles.field}>
-            <label>Password admin</label>
+            <label htmlFor="admin-password">Password admin</label>
             <div className={styles.fieldRow}>
               <input
+                id="admin-password"
                 type="password"
                 value={password}
                 onChange={(e) => setPassword(e.target.value)}
                 onKeyDown={(e) => e.key === 'Enter' && checkAuth()}
                 placeholder="Password"
+                autoComplete="current-password"
               />
               <button type="button" onClick={checkAuth} className={styles.accediBtn}>
                 Accedi
               </button>
             </div>
           </div>
-          {error && <p className={styles.error}>{error}</p>}
+          {authError && <p className={styles.error} role="alert">{authError}</p>}
           <button type="button" className={styles.closeBtn} onClick={onClose}>
             Chiudi
           </button>
@@ -320,12 +383,25 @@ export function AdminPanel({ onClose, onFileChange }: AdminPanelProps) {
   return (
     <div className={styles.overlay}>
       <div className={styles.panelAdmin}>
-        <h2>Pannello admin</h2>
-        <div className={styles.tabs}>
+        <div className={styles.panelHeader}>
+          <h2>Pannello admin</h2>
+          <button
+            type="button"
+            className={styles.closeBtnHeader}
+            onClick={onClose}
+            aria-label="Esci e chiudi pannello"
+          >
+            Esci
+          </button>
+        </div>
+        <div className={styles.tabs} role="tablist">
           {tabs.map((t) => (
             <button
               key={t.id}
               type="button"
+              role="tab"
+              aria-selected={tab === t.id}
+              aria-label={t.label}
               className={tab === t.id ? styles.tabActive : styles.tab}
               onClick={() => setTab(t.id)}
             >
@@ -333,8 +409,9 @@ export function AdminPanel({ onClose, onFileChange }: AdminPanelProps) {
             </button>
           ))}
         </div>
-        {error && <p className={styles.error}>{error}</p>}
-        {success && <p className={styles.success}>{success}</p>}
+        {error && <p className={styles.error} role="alert">{error}</p>}
+        {success && <p className={styles.success} role="status">{success}</p>}
+        {toastMessage && <div className={styles.toast} role="status">{toastMessage}</div>}
 
         <div className={styles.adminLayout}>
           <div className={styles.adminMain}>
@@ -375,10 +452,6 @@ export function AdminPanel({ onClose, onFileChange }: AdminPanelProps) {
                 onTogglePosto={togglePosto}
               />
             )}
-
-            <button type="button" className={styles.closeBtn} onClick={onClose}>
-              Chiudi
-            </button>
           </div>
 
           <aside className={styles.adminSidebar}>
@@ -387,50 +460,109 @@ export function AdminPanel({ onClose, onFileChange }: AdminPanelProps) {
               type="button"
               className={styles.exportLoadBtn}
               onClick={loadExport}
+              disabled={exportLoading}
+              aria-label="Aggiorna elenco prenotazioni"
             >
-              Aggiorna lista
+              {exportLoading ? 'Aggiornamento...' : 'Aggiorna elenco'}
             </button>
             {exportData && (
               <>
+                {exportSummary && (
+                  <p className={styles.exportSummary}>
+                    Totale: <strong>{exportSummary.nPersone}</strong> prenotazioni, <strong>{exportSummary.nPosti}</strong> posti
+                  </p>
+                )}
+                <input
+                  type="search"
+                  className={styles.exportSearch}
+                  placeholder="Cerca per nome o email..."
+                  value={exportSearch}
+                  onChange={(e) => setExportSearch(e.target.value)}
+                  aria-label="Cerca nell'elenco prenotazioni"
+                />
                 <div className={styles.exportTableWrap}>
                   <table className={styles.exportTable}>
                     <thead>
                       <tr>
-                        <th>Nome</th>
+                        <th>
+                          <button
+                            type="button"
+                            className={styles.thSort}
+                            onClick={() =>
+                              setExportSort((s) =>
+                                s?.key === 'nome' ? { key: 'nome', dir: (s.dir * -1) as 1 | -1 } : { key: 'nome', dir: 1 }
+                              )
+                            }
+                          >
+                            Nome {exportSort?.key === 'nome' ? (exportSort.dir === 1 ? '↑' : '↓') : ''}
+                          </button>
+                        </th>
                         <th>Allieva</th>
-                        <th>Email</th>
-                        <th>N.</th>
+                        <th>
+                          <button
+                            type="button"
+                            className={styles.thSort}
+                            onClick={() =>
+                              setExportSort((s) =>
+                                s?.key === 'email' ? { key: 'email', dir: (s.dir * -1) as 1 | -1 } : { key: 'email', dir: 1 }
+                              )
+                            }
+                          >
+                            Email {exportSort?.key === 'email' ? (exportSort.dir === 1 ? '↑' : '↓') : ''}
+                          </button>
+                        </th>
+                        <th>
+                          <button
+                            type="button"
+                            className={styles.thSort}
+                            onClick={() =>
+                              setExportSort((s) =>
+                                s?.key === 'count' ? { key: 'count', dir: (s.dir * -1) as 1 | -1 } : { key: 'count', dir: -1 }
+                              )
+                            }
+                          >
+                            N. {exportSort?.key === 'count' ? (exportSort.dir === 1 ? '↑' : '↓') : ''}
+                          </button>
+                        </th>
                         <th>Posti</th>
                       </tr>
                     </thead>
                     <tbody>
-                      {exportData.byPerson.map((r, i) => {
-                        const personKey = `${r.nome}\0${r.email}`
-                        const cellColor = personColorMap.get(personKey)
-                        return (
-                          <tr key={i}>
-                            <td>{r.nome}</td>
-                            <td>{r.nome_allieva ?? ''}</td>
-                            <td>{r.email}</td>
-                            <td
-                              className={cellColor ? styles.countCellColored : undefined}
-                              style={cellColor ? { backgroundColor: cellColor, borderColor: cellColor } : undefined}
-                            >
-                              {r.count}
-                            </td>
-                            <td>{r.posti.join(', ')}</td>
-                          </tr>
-                        )
-                      })}
+                      {exportFilteredAndSorted.length === 0 ? (
+                        <tr>
+                          <td colSpan={5} className={styles.exportEmpty}>
+                            {exportData.byPerson.length === 0 ? 'Nessuna prenotazione' : 'Nessun risultato per la ricerca'}
+                          </td>
+                        </tr>
+                      ) : (
+                        exportFilteredAndSorted.map((r, i) => {
+                          const personKey = `${r.nome}\0${r.email}`
+                          const cellColor = personColorMap.get(personKey)
+                          return (
+                            <tr key={i}>
+                              <td>{r.nome}</td>
+                              <td>{r.nome_allieva ?? ''}</td>
+                              <td>{r.email}</td>
+                              <td
+                                className={cellColor ? styles.countCellColored : undefined}
+                                style={cellColor ? { backgroundColor: cellColor, borderColor: cellColor } : undefined}
+                              >
+                                {r.count}
+                              </td>
+                              <td>{r.posti.join(', ')}</td>
+                            </tr>
+                          )
+                        })
+                      )}
                     </tbody>
                   </table>
                 </div>
                 <div className={styles.buttonRow}>
-                  <button type="button" className={styles.pdfBtn} onClick={exportPdf}>
+                  <button type="button" className={styles.pdfBtn} onClick={exportPdf} aria-label="Esporta elenco in PDF">
                     Esporta PDF
                   </button>
-                  <button type="button" className={styles.printBtn} onClick={stampaLista}>
-                    Stampa lista
+                  <button type="button" className={styles.printBtn} onClick={stampaLista} aria-label="Stampa lista prenotazioni">
+                    <span aria-hidden="true">🖨</span> Stampa lista
                   </button>
                 </div>
               </>
@@ -457,6 +589,7 @@ function SpettacoloForm({
   const [dataOra, setDataOra] = useState(
     imp.data_ora_evento ? imp.data_ora_evento.slice(0, 16) : ''
   )
+  const [dataError, setDataError] = useState('')
 
   useEffect(() => {
     setNomeTeatro(imp.nome_teatro)
@@ -467,6 +600,11 @@ function SpettacoloForm({
 
   const handleSubmit = (e: React.FormEvent) => {
     e.preventDefault()
+    setDataError('')
+    if (dataOra && new Date(dataOra) <= new Date()) {
+      setDataError('La data e ora devono essere nel futuro')
+      return
+    }
     onSave({
       nome_teatro,
       indirizzo_teatro: indirizzo_teatro,
@@ -478,8 +616,9 @@ function SpettacoloForm({
   return (
     <form onSubmit={handleSubmit} className={styles.formSection}>
       <div className={styles.field}>
-        <label>Nome teatro</label>
+        <label htmlFor="nome-teatro">Nome teatro</label>
         <input
+          id="nome-teatro"
           type="text"
           value={nome_teatro}
           onChange={(e) => setNomeTeatro(e.target.value)}
@@ -487,8 +626,9 @@ function SpettacoloForm({
         />
       </div>
       <div className={styles.field}>
-        <label>Indirizzo teatro</label>
+        <label htmlFor="indirizzo-teatro">Indirizzo teatro</label>
         <input
+          id="indirizzo-teatro"
           type="text"
           value={indirizzo_teatro}
           onChange={(e) => setIndirizzoTeatro(e.target.value)}
@@ -496,8 +636,9 @@ function SpettacoloForm({
         />
       </div>
       <div className={styles.field}>
-        <label>Nome spettacolo</label>
+        <label htmlFor="nome-spettacolo">Nome spettacolo</label>
         <input
+          id="nome-spettacolo"
           type="text"
           value={nome_spettacolo}
           onChange={(e) => setNomeSpettacolo(e.target.value)}
@@ -505,12 +646,16 @@ function SpettacoloForm({
         />
       </div>
       <div className={styles.field}>
-        <label>Data e ora evento</label>
+        <label htmlFor="data-ora">Data e ora evento</label>
         <input
+          id="data-ora"
           type="datetime-local"
           value={dataOra}
-          onChange={(e) => setDataOra(e.target.value)}
+          onChange={(e) => { setDataOra(e.target.value); setDataError('') }}
+          aria-invalid={!!dataError}
+          aria-describedby={dataError ? 'data-ora-error' : undefined}
         />
+        {dataError && <p id="data-ora-error" className={styles.fieldError}>{dataError}</p>}
       </div>
       <button type="submit" className={styles.primaryBtn} disabled={saving}>
         {saving ? 'Salvataggio...' : 'Salva'}
@@ -533,6 +678,7 @@ function TeatroForm({
   const [numero_file, setNumeroFile] = useState(imp.numero_file ?? 15)
   const [posti_per_fila, setPostiPerFila] = useState(imp.posti_per_fila ?? 10)
   const [gruppi_file, setGruppiFile] = useState<GruppoFile[]>(imp.gruppi_file || [])
+  const [fieldErrors, setFieldErrors] = useState<{ file?: string; posti?: string }>({})
 
   useEffect(() => {
     setNumeroFile(imp.numero_file ?? 15)
@@ -554,30 +700,41 @@ function TeatroForm({
 
   const handleSubmit = (e: React.FormEvent) => {
     e.preventDefault()
+    const err: { file?: string; posti?: string } = {}
+    if (numero_file < 1 || numero_file > 50) err.file = 'Inserisci un valore tra 1 e 50'
+    if (posti_per_fila < 1 || posti_per_fila > 50) err.posti = 'Inserisci un valore tra 1 e 50'
+    setFieldErrors(err)
+    if (Object.keys(err).length > 0) return
     onSave({ numero_file, posti_per_fila, gruppi_file })
   }
 
   return (
     <form onSubmit={handleSubmit} className={styles.formSection}>
       <div className={styles.field}>
-        <label>Numero di file</label>
+        <label htmlFor="numero-file">Numero di file</label>
         <input
+          id="numero-file"
           type="number"
           min={1}
           max={50}
           value={numero_file}
-          onChange={(e) => setNumeroFile(Number(e.target.value))}
+          onChange={(e) => { setNumeroFile(Number(e.target.value)); setFieldErrors((e2) => ({ ...e2, file: undefined })) }}
+          aria-invalid={!!fieldErrors.file}
         />
+        {fieldErrors.file && <p className={styles.fieldError}>{fieldErrors.file}</p>}
       </div>
       <div className={styles.field}>
-        <label>Posti per fila</label>
+        <label htmlFor="posti-fila">Posti per fila</label>
         <input
+          id="posti-fila"
           type="number"
           min={1}
           max={50}
           value={posti_per_fila}
-          onChange={(e) => setPostiPerFila(Number(e.target.value))}
+          onChange={(e) => { setPostiPerFila(Number(e.target.value)); setFieldErrors((e2) => ({ ...e2, posti: undefined })) }}
+          aria-invalid={!!fieldErrors.posti}
         />
+        {fieldErrors.posti && <p className={styles.fieldError}>{fieldErrors.posti}</p>}
       </div>
       <div className={styles.field}>
         <label>Gruppi di file (nome per intervallo)</label>
@@ -589,6 +746,7 @@ function TeatroForm({
               value={g.lettere}
               onChange={(e) => updateGruppo(i, 'lettere', e.target.value)}
               className={styles.gruppoLettere}
+              aria-label={`Lettere gruppo ${i + 1}`}
             />
             <input
               type="text"
@@ -596,8 +754,10 @@ function TeatroForm({
               value={g.nome}
               onChange={(e) => updateGruppo(i, 'nome', e.target.value)}
               className={styles.gruppoNome}
+              aria-label={`Nome gruppo ${i + 1}`}
             />
-            <button type="button" onClick={() => removeGruppo(i)} className={styles.smallBtn}>
+            <p className={styles.gruppoPreview}>{g.lettere.trim() ? `${g.lettere.trim()} → ${g.nome.trim() || '—'}` : '—'}</p>
+            <button type="button" onClick={() => removeGruppo(i)} className={styles.gruppoEliminaBtn} aria-label={`Elimina gruppo ${i + 1}`}>
               Elimina
             </button>
           </div>
@@ -634,10 +794,16 @@ function MappaPrenotazioni({
   return (
     <div className={styles.formSection}>
       <p className={styles.hint}>
-        Mappa con posti colorati per persona. Lista prenotazioni sotto.
+        Mappa con posti colorati per persona. Lista prenotazioni a destra.
       </p>
-      {loading && <p>Caricamento...</p>}
+      {loading && <div className={styles.spinnerWrap} aria-busy="true"><span className={styles.spinner} /></div>}
       {!loading && sezioni.some((s) => s.file.length > 0) && (
+        <>
+        <div className={styles.legenda}>
+          <span className={styles.legendaItem}><span className={styles.seatDisponibile} /> Disponibile</span>
+          <span className={styles.legendaItem}><span className={styles.seatRiservato} /> Riservato staff</span>
+          <span className={styles.legendaItem}><span className={styles.seatOccupato} style={{ backgroundColor: '#b91c1c' }} /> Prenotato</span>
+        </div>
         <div className={styles.adminGridWrap}>
           <div className={styles.adminGrid}>
             {sezioni.map((sez, idx) => (
@@ -688,6 +854,7 @@ function MappaPrenotazioni({
             ))}
           </div>
         </div>
+        </>
       )}
     </div>
   )
@@ -708,13 +875,28 @@ function BloccaPosti({
   onToggleFila: (fila: string) => void
   onTogglePosto: (posto: Posto) => void
 }) {
+  const handleToggleFila = (fila: string) => {
+    const postiInFila = byFila[fila] ?? []
+    const filaBloccata = postiInFila.length > 0 && postiInFila.every((p) => p.riservato_staff)
+    if (!filaBloccata && postiInFila.length > 1) {
+      if (!window.confirm(`Bloccare tutta la fila ${fila} (${postiInFila.length} posti)? I posti saranno riservati allo staff.`)) return
+    }
+    onToggleFila(fila)
+  }
+
   return (
     <div className={styles.formSection}>
       <p className={styles.hint}>
         Clicca sulla <strong>lettera della fila</strong> per bloccare/sbloccare tutta la fila. Clicca su un <strong>posto libero</strong> per bloccarlo singolarmente (riservato staff). I posti prenotati non sono modificabili.
       </p>
-      {loading && <p>Caricamento...</p>}
+      {loading && <div className={styles.spinnerWrap} aria-busy="true"><span className={styles.spinner} /></div>}
       {!loading && sezioni.some((s) => s.file.length > 0) && (
+        <>
+        <div className={styles.legenda}>
+          <span className={styles.legendaItem}><span className={styles.seatDisponibile} /> Disponibile</span>
+          <span className={styles.legendaItem}><span className={styles.seatRiservato} /> Riservato staff</span>
+          <span className={styles.legendaItem}><span className={styles.seatOccupato} style={{ backgroundColor: '#b91c1c' }} /> Prenotato</span>
+        </div>
         <div className={styles.adminGridWrap}>
           <div className={styles.adminGrid}>
             {sezioni.map((sez, idx) => (
@@ -730,9 +912,11 @@ function BloccaPosti({
                       <button
                         type="button"
                         className={filaBloccata ? `${styles.filaLabelBtn} ${styles.filaLabelBtnRiservata}` : styles.filaLabelBtn}
-                        onClick={() => onToggleFila(fila)}
+                        onClick={() => handleToggleFila(fila)}
                         title={filaBloccata ? `Fila ${fila} bloccata. Clicca per sbloccare tutta la fila` : `Fila ${fila} libera. Clicca per bloccare tutta la fila`}
+                        aria-label={filaBloccata ? `Fila ${fila} bloccata. Clicca per sbloccare` : `Fila ${fila} libera. Clicca per bloccare`}
                       >
+                        {filaBloccata && <span className={styles.filaLockIcon} aria-hidden>🔒</span>}
                         {fila}
                       </button>
                       <div className={styles.adminSeats}>
@@ -774,6 +958,7 @@ function BloccaPosti({
             ))}
           </div>
         </div>
+        </>
       )}
     </div>
   )

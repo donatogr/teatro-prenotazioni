@@ -24,10 +24,10 @@ const stateClass: Record<PostoStato, string> = {
 
 const statoLabelIt: Record<PostoStato, string> = {
   disponibile: 'disponibile',
-  occupato: 'occupato',
+  occupato: 'prenotato',
   non_disponibile: 'non disponibile',
   selezionato: 'selezionato',
-  bloccato: 'bloccato',
+  bloccato: 'prenotato',
   bloccato_da_me: 'selezionato',
 }
 
@@ -43,9 +43,9 @@ export function Seat({ id, fila, numero, stato, onClick, personColor, tooltipTex
         : stato === 'selezionato' || stato === 'bloccato_da_me'
           ? 'Clicca per deselezionare'
           : stato === 'occupato'
-            ? 'Occupato'
+            ? 'Prenotato'
             : stato === 'bloccato'
-              ? 'Bloccato da altro utente'
+              ? 'Prenotato'
               : 'Non disponibile'
 
   return (

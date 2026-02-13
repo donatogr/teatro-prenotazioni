@@ -18,7 +18,7 @@ describe('TeatroMap', () => {
     expect(screen.getByText('A')).toBeInTheDocument()
     expect(screen.getByText('B')).toBeInTheDocument()
     expect(screen.getByText(/Disponibile/)).toBeInTheDocument()
-    expect(screen.getByText(/Occupato/)).toBeInTheDocument()
+    expect(screen.getByText(/Prenotato/)).toBeInTheDocument()
   })
 
   it('chiama onSelectionChange aggiungendo posto quando si clicca su disponibile', async () => {
