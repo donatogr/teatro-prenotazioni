@@ -88,6 +88,7 @@ def crea_prenotazione():
     nome = (data.get('nome') or '').strip()
     nome_allieva = (data.get('nome_allieva') or '').strip()
     email = (data.get('email') or '').strip()
+    session_id = (data.get('session_id') or request.headers.get('X-Session-Id') or '').strip()
     if not nome or not email:
         return jsonify({'error': 'Nome e email richiesti'}), 400
     if not posto_ids:
@@ -110,7 +111,7 @@ def crea_prenotazione():
                 db.session.rollback()
                 return jsonify({'error': f'Posto {posto.fila}{posto.numero} già occupato. Ricarica la pagina e riprova.'}), 400
             blocco = _posto_blocco_attivo(posto)
-            if blocco:
+            if blocco and (not session_id or blocco.session_id != session_id):
                 db.session.rollback()
                 return jsonify({'error': f'Posto {posto.fila}{posto.numero} non più disponibile (blocco scaduto o occupato). Ricarica e riprova.'}), 400
         email_lower = email.lower()
