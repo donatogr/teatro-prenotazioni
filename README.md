@@ -7,6 +7,16 @@ Applicazione web per prenotare i posti a sedere per uno spettacolo. Gli utenti v
 - Python 3.9–3.12 (consigliato; con Python 3.13 usare `pip install -r requirements.txt` con SQLAlchemy aggiornato)
 - Node.js 18+ (per il frontend)
 
+## Avvio in locale (un solo comando)
+
+Dalla **root del progetto** puoi avviare backend e frontend insieme:
+
+```bash
+npm run dev
+```
+
+Requisiti: virtualenv con dipendenze backend già installate (`pip install -r backend/requirements.txt`), e `npm install` nella root (installa `concurrently`). Poi apri **http://localhost:5173** per il frontend; il backend risponde su http://127.0.0.1:5000.
+
 ## Docker (consigliato)
 
 Con Docker e Docker Compose puoi avviare tutto con un solo comando:
@@ -96,6 +106,16 @@ npm run test
 ```
 
 Per una singola esecuzione: `npm run test:run`
+
+### Test E2E (Playwright)
+
+I test end-to-end verificano il flusso completo in browser (selezione posti, form, conferma, recupero). Richiedono che **backend e frontend siano avviati**.
+
+1. Avvia il **backend** sulla porta 5000 (es. `cd backend && python run.py`).
+2. Dalla cartella **frontend**: `npm run e2e` (avvia automaticamente il dev server su http://localhost:5173 se non è già in esecuzione, poi esegue i test).
+3. Per debug con interfaccia: `npm run e2e:ui`.
+
+Al primo utilizzo installa i browser Playwright: `npx playwright install`.
 
 ## Piantina
 
