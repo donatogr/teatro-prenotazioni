@@ -22,6 +22,61 @@
   font-size: 1.25rem;
 }
 
+.panelHeader {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 1rem;
+  margin-bottom: 1rem;
+}
+
+.panelHeader h2 {
+  margin: 0;
+}
+
+.closeBtnHeader {
+  padding: 0.35rem 0.75rem;
+  border-radius: 8px;
+  border: none;
+  background: #475569;
+  color: #fff;
+  cursor: pointer;
+  font-size: 0.9rem;
+}
+
+.closeBtnHeader:hover {
+  background: #64748b;
+}
+
+.closeBtnHeader:focus-visible,
+.tab:focus-visible,
+.tabActive:focus-visible,
+.closeBtn:focus-visible,
+.accediBtn:focus-visible {
+  outline: 2px solid #3b82f6;
+  outline-offset: 2px;
+}
+
+.toast {
+  position: fixed;
+  bottom: 1.5rem;
+  left: 50%;
+  transform: translateX(-50%);
+  padding: 0.75rem 1.25rem;
+  border-radius: 8px;
+  background: #0f172a;
+  color: #e2e8f0;
+  font-size: 0.9rem;
+  box-shadow: 0 4px 12px rgba(0, 0, 0, 0.4);
+  z-index: 101;
+  animation: toastIn 0.2s ease-out;
+}
+
+@keyframes toastIn {
+  from { opacity: 0; transform: translateX(-50%) translateY(8px); }
+  to { opacity: 1; transform: translateX(-50%) translateY(0); }
+}
+
 .field {
   margin-bottom: 1rem;
 }
@@ -98,16 +153,204 @@
   background: #1e293b;
   padding: 1.5rem;
   border-radius: 12px;
-  max-width: 900px;
-  width: 95%;
-  max-height: 90vh;
-  overflow-y: auto;
+  max-width: 1400px;
+  width: 98%;
+  max-height: 92vh;
+  display: flex;
+  flex-direction: column;
   border: 1px solid rgba(255, 255, 255, 0.1);
 }
 
 .panelAdmin h2 {
   margin: 0 0 1rem 0;
   font-size: 1.25rem;
+}
+
+.adminLayout {
+  display: flex;
+  gap: 1.5rem;
+  flex: 1;
+  min-height: 0;
+  margin-top: 0.25rem;
+}
+
+.adminMain {
+  flex: 1;
+  min-width: 0;
+  overflow-y: auto;
+}
+
+.elencoSection {
+  margin: 1rem 0;
+  max-width: 100%;
+}
+
+.elencoTitle {
+  font-size: 1.1rem;
+  font-weight: 600;
+  margin: 0 0 0.75rem 0;
+  color: rgba(255, 255, 255, 0.95);
+}
+
+.lastExportAt {
+  font-size: 0.8rem;
+  color: rgba(255, 255, 255, 0.6);
+  margin: 0.25rem 0 0.5rem 0;
+}
+
+.newCountBadge {
+  font-size: 0.85rem;
+  color: #86efac;
+  margin: 0.25rem 0 0.5rem 0;
+  font-weight: 600;
+}
+
+.skeletonTable {
+  display: flex;
+  flex-direction: column;
+  gap: 0.5rem;
+}
+
+.skeletonRow {
+  height: 36px;
+  background: linear-gradient(90deg, rgba(255,255,255,0.08) 25%, rgba(255,255,255,0.12) 50%, rgba(255,255,255,0.08) 75%);
+  background-size: 200% 100%;
+  animation: skeletonShine 1.2s ease-in-out infinite;
+  border-radius: 4px;
+}
+
+@keyframes skeletonShine {
+  0% { background-position: 200% 0; }
+  100% { background-position: -200% 0; }
+}
+
+.exportRowClickable {
+  cursor: pointer;
+}
+
+.exportRowClickable:hover {
+  background: rgba(255, 255, 255, 0.08);
+}
+
+.rowDrawerOverlay {
+  position: fixed;
+  inset: 0;
+  background: rgba(0, 0, 0, 0.6);
+  z-index: 102;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  padding: 1rem;
+}
+
+.rowDrawer {
+  background: #1e293b;
+  border-radius: 12px;
+  padding: 1.25rem;
+  max-width: 400px;
+  width: 100%;
+  border: 1px solid rgba(255, 255, 255, 0.1);
+}
+
+.rowDrawerHeader {
+  display: flex;
+  justify-content: space-between;
+  align-items: center;
+  margin-bottom: 1rem;
+}
+
+.rowDrawerHeader h4 {
+  margin: 0;
+  font-size: 1.1rem;
+}
+
+.rowDrawerClose {
+  padding: 0.25rem 0.5rem;
+  border: none;
+  background: transparent;
+  color: rgba(255, 255, 255, 0.8);
+  cursor: pointer;
+  font-size: 1.5rem;
+  line-height: 1;
+}
+
+.rowDrawerClose:hover {
+  color: #fff;
+}
+
+.rowDrawerBody {
+  margin: 0 0 1rem 0;
+  font-size: 0.9rem;
+}
+
+.rowDrawerBody dt {
+  color: rgba(255, 255, 255, 0.6);
+  margin-top: 0.5rem;
+  margin-bottom: 0.15rem;
+}
+
+.rowDrawerBody dd {
+  margin: 0;
+  color: rgba(255, 255, 255, 0.95);
+}
+
+.exportSummary {
+  font-size: 0.85rem;
+  margin: 0.5rem 0 0.5rem 0;
+  color: rgba(255, 255, 255, 0.85);
+}
+
+.exportSearch {
+  width: 100%;
+  padding: 0.5rem 0.75rem;
+  border-radius: 8px;
+  border: 1px solid rgba(255, 255, 255, 0.2);
+  background: rgba(0, 0, 0, 0.3);
+  color: #fff;
+  font-size: 0.9rem;
+  margin-bottom: 0.5rem;
+}
+
+.exportSearch::placeholder {
+  color: rgba(255, 255, 255, 0.5);
+}
+
+.exportTableWrap {
+  margin: 0.75rem 0;
+  overflow-x: auto;
+  max-height: 60vh;
+  overflow-y: auto;
+}
+
+.exportTable thead th {
+  position: sticky;
+  top: 0;
+  background: #334155;
+  z-index: 1;
+  box-shadow: 0 1px 0 rgba(255, 255, 255, 0.1);
+}
+
+.thSort {
+  padding: 0.4rem 0.6rem;
+  border: none;
+  background: transparent;
+  color: inherit;
+  cursor: pointer;
+  font-weight: 600;
+  width: 100%;
+  text-align: left;
+  font-size: inherit;
+}
+
+.thSort:hover {
+  background: rgba(255, 255, 255, 0.1);
+}
+
+.exportEmpty {
+  text-align: center;
+  padding: 1.5rem !important;
+  color: rgba(255, 255, 255, 0.7);
+  font-style: italic;
 }
 
 .tabs {
@@ -295,6 +538,16 @@
   background: rgba(0, 0, 0, 0.3);
 }
 
+.exportTable thead th {
+  background: #334155;
+}
+
+.countCellColored {
+  color: #fff;
+  font-weight: 600;
+  text-align: center;
+}
+
 .pdfBtn {
   padding: 0.5rem 1rem;
   border-radius: 8px;
@@ -313,6 +566,12 @@
   color: #86efac;
   font-size: 0.9rem;
   margin: 0 0 0.75rem 0;
+}
+
+.fieldError {
+  color: #f87171;
+  font-size: 0.8rem;
+  margin: 0.25rem 0 0 0;
 }
 
 .formSection {
@@ -375,11 +634,129 @@
   margin-top: 0.75rem;
 }
 
+.mappaSkeletonWrap {
+  margin: 1rem 0;
+}
+
+.mappaSkeleton {
+  margin-top: 1rem;
+  display: flex;
+  flex-direction: column;
+  gap: 0.35rem;
+}
+
+.mappaSkeletonRow {
+  display: flex;
+  align-items: center;
+  gap: 0.5rem;
+}
+
+.skeletonFilaLabel {
+  width: 28px;
+  height: 28px;
+  border-radius: 6px;
+  background: rgba(255, 255, 255, 0.1);
+  display: inline-block;
+}
+
+.mappaSkeletonSeats {
+  display: flex;
+  gap: 4px;
+  flex-wrap: wrap;
+}
+
+.skeletonSeat {
+  width: 26px;
+  height: 26px;
+  border-radius: 4px;
+  background: linear-gradient(135deg, rgba(255,255,255,0.08) 0%, rgba(255,255,255,0.14) 100%);
+  display: inline-block;
+  animation: skeletonPulse 1.5s ease-in-out infinite;
+}
+
+@keyframes skeletonPulse {
+  0%, 100% { opacity: 0.7; }
+  50% { opacity: 1; }
+}
+
+.btnSpinner {
+  display: inline-block;
+  width: 14px;
+  height: 14px;
+  border: 2px solid rgba(255,255,255,0.3);
+  border-top-color: #fff;
+  border-radius: 50%;
+  animation: spin 0.6s linear infinite;
+  margin-right: 0.5rem;
+  vertical-align: middle;
+}
+
+.spinnerWrap {
+  padding: 2rem;
+  display: flex;
+  justify-content: center;
+}
+
+.spinner {
+  width: 32px;
+  height: 32px;
+  border: 3px solid rgba(255, 255, 255, 0.2);
+  border-top-color: #3b82f6;
+  border-radius: 50%;
+  animation: spin 0.8s linear infinite;
+}
+
+@keyframes spin {
+  to { transform: rotate(360deg); }
+}
+
+.legenda {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 1rem;
+  margin-bottom: 1rem;
+  font-size: 0.85rem;
+  color: rgba(255, 255, 255, 0.85);
+}
+
+.legendaItem {
+  display: inline-flex;
+  align-items: center;
+  gap: 0.35rem;
+}
+
+.legendaItem span {
+  width: 18px;
+  height: 18px;
+  border-radius: 4px;
+  border: 1px solid rgba(255, 255, 255, 0.3);
+}
+
+.filaLockIcon {
+  margin-right: 0.25rem;
+  font-size: 0.85em;
+}
+
 .gruppoRow {
   display: flex;
+  flex-wrap: wrap;
   gap: 0.5rem;
   align-items: center;
   margin-bottom: 0.5rem;
+}
+
+.gruppoEliminaBtn {
+  padding: 0.3rem 0.6rem;
+  font-size: 0.8rem;
+  border-radius: 4px;
+  border: 1px solid rgba(248, 113, 113, 0.5);
+  background: rgba(248, 113, 113, 0.2);
+  color: #fca5a5;
+  cursor: pointer;
+}
+
+.gruppoEliminaBtn:hover {
+  background: rgba(248, 113, 113, 0.35);
 }
 
 .gruppoLettere {

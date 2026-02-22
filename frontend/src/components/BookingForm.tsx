@@ -59,7 +59,7 @@ export function BookingForm({
     setLoading(true)
     onError('')
     try {
-      const res = await creaPrenotazione(selectedIds, n, nomeAllievaVal, eVal, sessionId)
+      const res = await creaPrenotazione(selectedIds, n, nomeAllieva.trim(), eVal, sessionId)
       setNome('')
       setNomeAllieva('')
       setEmail('')
@@ -72,7 +72,7 @@ export function BookingForm({
   }
 
   return (
-    <form className={styles.form} onSubmit={handleSubmit}>
+    <form className={styles.form} onSubmit={handleSubmit} noValidate>
       <h3 className={styles.title}>Completa la prenotazione</h3>
       <div className={styles.field}>
         <label htmlFor="nome">Nome</label>

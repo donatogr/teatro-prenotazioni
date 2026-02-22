@@ -18,7 +18,7 @@ describe('TeatroMap', () => {
     expect(screen.getByText('A')).toBeInTheDocument()
     expect(screen.getByText('B')).toBeInTheDocument()
     expect(screen.getByText(/Disponibile/)).toBeInTheDocument()
-    expect(screen.getByText(/Occupato/)).toBeInTheDocument()
+    expect(screen.getByText(/Prenotato/)).toBeInTheDocument()
   })
 
   it('chiama onSelectionChange aggiungendo posto quando si clicca su disponibile', async () => {
@@ -27,12 +27,14 @@ describe('TeatroMap', () => {
     render(
       <TeatroMap posti={postiMock} selectedIds={[]} onSelectionChange={onSelectionChange} />
     )
+    // Fila A è ordinata per numero decrescente (2 poi 1), quindi primo bottone = id 2, secondo = id 1.
+    // Il test non aggiorna selectedIds tra i click, quindi al secondo click il componente ha ancora selectedIds=[] e chiama con [1].
     const buttons = screen.getAllByRole('button').filter(b => b.textContent === '1' || b.textContent === '2')
     await user.click(buttons[0]!)
-    expect(onSelectionChange).toHaveBeenCalledWith([1])
+    expect(onSelectionChange).toHaveBeenCalledWith([2])
     onSelectionChange.mockClear()
     await user.click(buttons[1]!)
-    expect(onSelectionChange).toHaveBeenCalledWith([2])
+    expect(onSelectionChange).toHaveBeenCalledWith([1])
   })
 
   it('rimuove posto dalla selezione quando si clicca su posto già selezionato', async () => {

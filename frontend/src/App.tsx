@@ -1,4 +1,4 @@
-import { useState, useEffect, useCallback, useMemo } from 'react'
+import { useState, useEffect, useCallback, useRef } from 'react'
 import type { Posto } from './types'
 import { getPosti, getSpettacolo, bloccaPosti, rinnovaBlocchi, rilascioBlocchi } from './services/api'
 import { TeatroMap } from './components/TeatroMap'
@@ -9,11 +9,25 @@ import styles from './App.module.css'
 
 const POLL_INTERVAL_MS = 4000
 const RINNOVO_BLOCCHI_MS = 2 * 60 * 1000 // rinnovo ogni 2 minuti
+const SESSION_STORAGE_KEY = 'teatro-prenotazioni-session-id'
 
 function App() {
-  const sessionId = useMemo(() => crypto.randomUUID(), [])
+  const [sessionId] = useState(() => {
+    try {
+      if (typeof sessionStorage === 'undefined') return crypto.randomUUID()
+      const s = sessionStorage.getItem(SESSION_STORAGE_KEY)
+      if (s && /^[0-9a-f-]{36}$/i.test(s)) return s
+    } catch {}
+    return crypto.randomUUID()
+  })
+  useEffect(() => {
+    try {
+      sessionStorage.setItem(SESSION_STORAGE_KEY, sessionId)
+    } catch {}
+  }, [sessionId])
   const [posti, setPosti] = useState<Posto[]>([])
   const [selectedIds, setSelectedIds] = useState<number[]>([])
+  const haPulitoSelezioneRef = useRef(false)
   const [spettacolo, setSpettacolo] = useState<{ nome_teatro: string; nome_spettacolo: string; data_ora_evento: string | null; gruppi_file: { lettere: string; nome: string }[] }>({ nome_teatro: '', nome_spettacolo: '', data_ora_evento: null, gruppi_file: [] })
   const [error, setError] = useState('')
   const [successMessage, setSuccessMessage] = useState('')
@@ -37,14 +51,19 @@ function App() {
   }, [fetchSpettacolo])
 
   const [refreshingMessage, setRefreshingMessage] = useState(false)
+  const erroreDaFetchRef = useRef(false)
 
   const fetchPosti = useCallback(async () => {
     try {
       const data = await getPosti(sessionId)
       setPosti(data)
-      setError('')
+      if (erroreDaFetchRef.current) {
+        setError('')
+        erroreDaFetchRef.current = false
+      }
     } catch (e) {
       setError(e instanceof Error ? e.message : 'Errore caricamento posti')
+      erroreDaFetchRef.current = true
     }
   }, [sessionId])
 
@@ -54,9 +73,30 @@ function App() {
     return () => clearInterval(t)
   }, [fetchPosti])
 
+  useEffect(() => {
+    if (selectedIds.length > 0) return
+    const bloccatiDaMe = posti.filter((p) => p.stato === 'bloccato_da_me').map((p) => p.id)
+    if (haPulitoSelezioneRef.current) {
+      if (bloccatiDaMe.length === 0) haPulitoSelezioneRef.current = false
+      return
+    }
+    if (bloccatiDaMe.length > 0) {
+      setSelectedIds(bloccatiDaMe)
+    }
+  }, [posti, selectedIds.length])
+
   const handleSelectionChange = useCallback(
     async (newIds: number[]) => {
       const removed = selectedIds.filter((id) => !newIds.includes(id))
+      if (newIds.length === 0) {
+        const toRelease = [...selectedIds]
+        haPulitoSelezioneRef.current = true
+        setSelectedIds([])
+        if (toRelease.length > 0) {
+          rilascioBlocchi(sessionId, toRelease).then(fetchPosti).catch(() => {})
+        }
+        return
+      }
       if (removed.length > 0) {
         try {
           await rilascioBlocchi(sessionId, removed)
@@ -64,19 +104,15 @@ function App() {
           // ignora errori rilascio
         }
       }
-      if (newIds.length > 0) {
-        try {
-          await bloccaPosti(sessionId, newIds)
-          setSelectedIds(newIds)
-          setError('')
-        } catch (e) {
-          setError(e instanceof Error ? e.message : 'Alcuni posti non sono più disponibili')
-          setRefreshingMessage(true)
-          fetchPosti()
-          setTimeout(() => setRefreshingMessage(false), 2000)
-        }
-      } else {
+      try {
+        await bloccaPosti(sessionId, newIds)
         setSelectedIds(newIds)
+        setError('')
+      } catch (e) {
+        setError(e instanceof Error ? e.message : 'Alcuni posti non sono più disponibili')
+        setRefreshingMessage(true)
+        fetchPosti()
+        setTimeout(() => setRefreshingMessage(false), 2000)
       }
       if (newIds.length > 0) {
         rinnovaBlocchi(sessionId, newIds).catch(() => {})

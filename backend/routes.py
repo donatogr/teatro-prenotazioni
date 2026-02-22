@@ -88,6 +88,7 @@ def crea_prenotazione():
     nome = (data.get('nome') or '').strip()
     nome_allieva = (data.get('nome_allieva') or '').strip()
     email = (data.get('email') or '').strip()
+    session_id = (data.get('session_id') or request.headers.get('X-Session-Id') or '').strip()
     if not nome or not email:
         return jsonify({'error': 'Nome e email richiesti'}), 400
     if not posto_ids:
@@ -110,7 +111,7 @@ def crea_prenotazione():
                 db.session.rollback()
                 return jsonify({'error': f'Posto {posto.fila}{posto.numero} già occupato. Ricarica la pagina e riprova.'}), 400
             blocco = _posto_blocco_attivo(posto)
-            if blocco:
+            if blocco and (not session_id or blocco.session_id != session_id):
                 db.session.rollback()
                 return jsonify({'error': f'Posto {posto.fila}{posto.numero} non più disponibile (blocco scaduto o occupato). Ricarica e riprova.'}), 400
         email_lower = email.lower()
@@ -248,7 +249,7 @@ def admin_export():
         return jsonify({'error': 'Non autorizzato'}), 401
     pren_list = Prenotazione.query.filter_by(stato='confermata').order_by(Prenotazione.nome, Prenotazione.email).all()
     by_seat = []
-    person_map = {}  # (nome, email) -> { count, posti: [] }
+    person_map = {}  # (nome, email) -> { count, posti: [], timestamp: datetime }
     for p in pren_list:
         posto = Posto.query.get(p.posto_id)
         if not posto:
@@ -258,10 +259,18 @@ def admin_export():
         by_seat.append({'fila': fila, 'numero': numero, 'posto': label, 'nome': p.nome, 'nome_allieva': p.nome_allieva or '', 'email': p.email})
         key = (p.nome, p.email)
         if key not in person_map:
-            person_map[key] = {'nome': p.nome, 'nome_allieva': p.nome_allieva or '', 'email': p.email, 'count': 0, 'posti': []}
+            person_map[key] = {'nome': p.nome, 'nome_allieva': p.nome_allieva or '', 'email': p.email, 'count': 0, 'posti': [], 'timestamp': p.timestamp}
+        else:
+            if p.timestamp and (person_map[key]['timestamp'] is None or p.timestamp < person_map[key]['timestamp']):
+                person_map[key]['timestamp'] = p.timestamp
         person_map[key]['count'] += 1
         person_map[key]['posti'].append(label)
-    by_person = [{'nome': v['nome'], 'nome_allieva': v['nome_allieva'], 'email': v['email'], 'count': v['count'], 'posti': v['posti']} for v in person_map.values()]
+    by_person = []
+    for v in person_map.values():
+        rec = {'nome': v['nome'], 'nome_allieva': v['nome_allieva'], 'email': v['email'], 'count': v['count'], 'posti': v['posti']}
+        if v.get('timestamp'):
+            rec['timestamp'] = v['timestamp'].isoformat()
+        by_person.append(rec)
     by_person.sort(key=lambda x: (-x['count'], x['nome'], x['email']))
     by_seat.sort(key=lambda x: (x['fila'], x['numero']))
     return jsonify({'bySeat': by_seat, 'byPerson': by_person})
