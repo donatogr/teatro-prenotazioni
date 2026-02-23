@@ -31,7 +31,7 @@ const statoLabelIt: Record<PostoStato, string> = {
   bloccato_da_me: 'selezionato',
 }
 
-export function Seat({ id, fila, numero, stato, onClick, personColor, tooltipText }: SeatProps) {
+export function Seat({ fila, numero, stato, onClick, personColor, tooltipText }: SeatProps) {
   const clickable =
     stato === 'disponibile' || stato === 'selezionato' || stato === 'bloccato_da_me'
   const label = `${fila}${numero}`
