@@ -838,7 +838,6 @@ function TeatroForm({
 }
 
 function MappaPrenotazioni({
-  posti,
   byFila,
   sezioni,
   personColorMap,
