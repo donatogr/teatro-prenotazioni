@@ -27,6 +27,28 @@ docker compose up --build
 
 Poi apri **http://localhost:8080**. Il backend è in ascolto sulla porta 5000 (interno); il frontend (nginx) espone la porta 8080 e inoltra le richieste `/api` al backend. Il database SQLite è persistente nel volume `backend-data`. Per variabili d’ambiente (es. `ADMIN_PASSWORD`, `SECRET_KEY`) crea un file `.env` nella root o passale a `docker compose`.
 
+## Deploy su Railway
+
+Puoi pubblicare l'app su [Railway](https://railway.com) con due servizi (backend + frontend) dallo stesso repository.
+
+1. **Crea un progetto** su Railway e collegalo al repo GitHub.
+
+2. **Servizio Backend**
+   - Aggiungi un servizio da GitHub, imposta **Root Directory** = `backend`.
+   - Railway userà il `Dockerfile` nella cartella backend.
+   - **Variabili d'ambiente**: `DATABASE_URL=sqlite:////app/data/database.db`, `SECRET_KEY` (stringa casuale, es. `openssl rand -hex 32`), `ADMIN_PASSWORD`, `ALLOWED_ORIGINS` = URL pubblico del frontend (es. `https://tuoprogetto-frontend.up.railway.app`).
+   - **Volume**: crea un volume e montalo su `/app/data` per persistere il database SQLite.
+   - In **Settings → Networking** genera un dominio pubblico e annota l'URL (es. `https://tuoprogetto-backend.up.railway.app`).
+
+3. **Servizio Frontend**
+   - Aggiungi un secondo servizio dallo stesso repo, **Root Directory** = `frontend`.
+   - **Variabile d'ambiente**: `BACKEND_URL` = URL pubblico del backend (es. `https://tuoprogetto-backend.up.railway.app`, senza slash finale).
+   - In **Settings → Networking** genera un dominio pubblico per il frontend.
+
+4. **CORS**: nel backend, `ALLOWED_ORIGINS` deve includere l'URL del frontend (con `https://`). Railway fornisce TLS sui domini `.up.railway.app`.
+
+Dopo il primo deploy, ogni push sul branch collegato triggera il redeploy. Per dati di esempio sul DB in produzione puoi usare gli script del backend (es. `seed_example_data.py`) tramite Railway CLI o un job one-off.
+
 ## Backend
 
 ### Setup con virtualenv (consigliato)
