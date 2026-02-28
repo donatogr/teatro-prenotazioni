@@ -66,7 +66,7 @@ describe('api', () => {
         ok: true,
         json: () => Promise.resolve({ prenotazioni: [{ id: 1, nome: 'Mario' }] }),
       })
-      const result = await api.creaPrenotazione([1], 'Mario', 'm@m.it')
+      const result = await api.creaPrenotazione([1], 'Mario', '', 'm@m.it')
       expect(fetchMock).toHaveBeenCalledWith(
         '/api/prenotazioni',
         expect.objectContaining({
@@ -82,7 +82,7 @@ describe('api', () => {
         ok: false,
         json: () => Promise.resolve({ error: 'Posto non disponibile' }),
       })
-      await expect(api.creaPrenotazione([1], 'M', 'm@m.it')).rejects.toThrow('Posto non disponibile')
+      await expect(api.creaPrenotazione([1], 'M', '', 'm@m.it')).rejects.toThrow('Posto non disponibile')
     })
   })
 
