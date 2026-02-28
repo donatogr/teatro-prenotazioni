@@ -13,19 +13,18 @@ def create_app():
     with app.app_context():
         import models  # register models with db
         db.create_all()
-        # Migrazione: aggiungi colonna disponibile se mancante (DB esistenti)
-        from sqlalchemy import text
+        from sqlalchemy import text, inspect as sa_inspect
         try:
-            r = db.session.execute(text("PRAGMA table_info(posti)"))
-            cols = [row[1] for row in r.fetchall()]
+            inspector = sa_inspect(db.engine)
+            cols = [c['name'] for c in inspector.get_columns('posti')]
             if 'disponibile' not in cols:
-                db.session.execute(text("ALTER TABLE posti ADD COLUMN disponibile BOOLEAN DEFAULT 1"))
+                db.session.execute(text("ALTER TABLE posti ADD COLUMN disponibile BOOLEAN DEFAULT TRUE"))
                 db.session.commit()
         except Exception:
             db.session.rollback()
         try:
-            r = db.session.execute(text("PRAGMA table_info(prenotazioni)"))
-            cols = [row[1] for row in r.fetchall()]
+            inspector = sa_inspect(db.engine)
+            cols = [c['name'] for c in inspector.get_columns('prenotazioni')]
             if 'nome_allieva' not in cols:
                 db.session.execute(text("ALTER TABLE prenotazioni ADD COLUMN nome_allieva VARCHAR(120) DEFAULT ''"))
                 db.session.commit()

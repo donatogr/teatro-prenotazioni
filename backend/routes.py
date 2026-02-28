@@ -95,12 +95,15 @@ def crea_prenotazione():
         return jsonify({'error': 'Seleziona almeno un posto'}), 400
     try:
         _pulisci_blocchi_scaduti()
-        # Lock per concorrenza: su SQLite BEGIN IMMEDIATE acquisisce il lock subito (prima di qualsiasi lettura)
         bind = db.session.get_bind()
-        if bind.dialect.name == 'sqlite':
+        is_sqlite = bind.dialect.name == 'sqlite'
+        if is_sqlite:
             db.session.execute(text('BEGIN IMMEDIATE'))
         for pid in posto_ids:
-            posto = Posto.query.get(pid)
+            if is_sqlite:
+                posto = Posto.query.get(pid)
+            else:
+                posto = db.session.query(Posto).filter_by(id=pid).with_for_update().first()
             if not posto:
                 db.session.rollback()
                 return jsonify({'error': f'Posto {pid} non trovato'}), 400
