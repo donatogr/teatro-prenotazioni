@@ -562,6 +562,20 @@
   background: #b91c1c;
 }
 
+.excelBtn {
+  padding: 0.5rem 1rem;
+  border-radius: 8px;
+  border: none;
+  background: #15803d;
+  color: #fff;
+  cursor: pointer;
+  margin-top: 0.5rem;
+}
+
+.excelBtn:hover {
+  background: #166534;
+}
+
 .success {
   color: #86efac;
   font-size: 0.9rem;

@@ -332,6 +332,35 @@ export function AdminPanel({ onClose, onFileChange }: AdminPanelProps) {
     })
   }
 
+  const exportExcel = () => {
+    if (!exportData) return
+    import('xlsx').then((XLSX) => {
+      const wb = XLSX.utils.book_new()
+      const sheetPosti = XLSX.utils.json_to_sheet(
+        exportData.bySeat.map((r) => ({
+          Posto: r.posto,
+          Nome: r.nome,
+          'Nome allieva': r.nome_allieva ?? '',
+          Email: r.email,
+        }))
+      )
+      XLSX.utils.book_append_sheet(wb, sheetPosti, 'Per posto')
+      const sheetPersone = XLSX.utils.json_to_sheet(
+        exportData.byPerson.map((r) => ({
+          Nome: r.nome,
+          'Nome allieva': r.nome_allieva ?? '',
+          Email: r.email,
+          'N. posti': r.count,
+          Posti: r.posti.join(', '),
+          Data: r.timestamp ? new Date(r.timestamp).toLocaleString('it-IT') : '',
+        }))
+      )
+      XLSX.utils.book_append_sheet(wb, sheetPersone, 'Per persona')
+      XLSX.writeFile(wb, 'prenotazioni-teatro.xlsx')
+      setToastMessage('Excel scaricato')
+    })
+  }
+
   const stampaLista = () => {
     if (!exportData) return
     const win = window.open('', '_blank')
@@ -590,6 +619,9 @@ export function AdminPanel({ onClose, onFileChange }: AdminPanelProps) {
                     <div className={styles.buttonRow}>
                       <button type="button" className={styles.pdfBtn} onClick={exportPdf} aria-label="Esporta elenco in PDF">
                         Esporta PDF
+                      </button>
+                      <button type="button" className={styles.excelBtn} onClick={exportExcel} aria-label="Esporta elenco in Excel">
+                        Esporta Excel
                       </button>
                       <button type="button" className={styles.printBtn} onClick={stampaLista} aria-label="Stampa lista prenotazioni">
                         <span aria-hidden="true">🖨</span> Stampa lista
