@@ -13,24 +13,6 @@ def create_app():
     with app.app_context():
         import models  # register models with db
         db.create_all()
-        # Migrazione: aggiungi colonna disponibile se mancante (DB esistenti)
-        from sqlalchemy import text
-        try:
-            r = db.session.execute(text("PRAGMA table_info(posti)"))
-            cols = [row[1] for row in r.fetchall()]
-            if 'disponibile' not in cols:
-                db.session.execute(text("ALTER TABLE posti ADD COLUMN disponibile BOOLEAN DEFAULT 1"))
-                db.session.commit()
-        except Exception:
-            db.session.rollback()
-        try:
-            r = db.session.execute(text("PRAGMA table_info(prenotazioni)"))
-            cols = [row[1] for row in r.fetchall()]
-            if 'nome_allieva' not in cols:
-                db.session.execute(text("ALTER TABLE prenotazioni ADD COLUMN nome_allieva VARCHAR(120) DEFAULT ''"))
-                db.session.commit()
-        except Exception:
-            db.session.rollback()
         from seed import init_seats_if_empty
         init_seats_if_empty()
         from routes import api_bp
