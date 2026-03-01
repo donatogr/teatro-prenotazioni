@@ -1,13 +1,18 @@
 import { useState } from 'react'
 import { recuperaPrenotazioni } from '../services/api'
 import type { PrenotazioneConPosto } from '../types'
+import type { RecuperoData } from './BookingForm'
 import styles from './RecuperaPrenotazione.module.css'
 
 const EMAIL_RE = /^[^\s@]+@[^\s@]+\.[^\s@]+$/
 
 const RECUPERA_TITLE_ID = 'recupera-prenotazione-title'
 
-export function RecuperaPrenotazione() {
+interface RecuperaPrenotazioneProps {
+  onRecuperoSuccess?: (data: RecuperoData) => void
+}
+
+export function RecuperaPrenotazione({ onRecuperoSuccess }: RecuperaPrenotazioneProps) {
   const [open, setOpen] = useState(false)
   const [email, setEmail] = useState('')
   const [codice, setCodice] = useState('')
@@ -37,6 +42,22 @@ export function RecuperaPrenotazione() {
     try {
       const res = await recuperaPrenotazioni(eVal, cVal)
       setPrenotazioni(res.prenotazioni)
+      if (res.prenotazioni.length > 0 && onRecuperoSuccess) {
+        const first = res.prenotazioni[0]
+        onRecuperoSuccess({
+          prenotazioni: res.prenotazioni.map((p) => ({
+            id: p.id,
+            posto_id: p.posto_id,
+            nome: p.nome,
+            nome_allieva: p.nome_allieva,
+            email: p.email,
+          })),
+          nome: first.nome,
+          email: eVal,
+          nomeAllieva: first.nome_allieva || '',
+          codice: cVal,
+        })
+      }
     } catch (err) {
       setError(err instanceof Error ? err.message : 'Errore recupero prenotazione')
     } finally {

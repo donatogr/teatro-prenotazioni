@@ -138,6 +138,12 @@ def crea_prenotazione():
                 db.session.rollback()
                 return jsonify({'error': 'Impossibile generare codice prenotazione. Riprova.'}), 500
         db.session.commit()
+        try:
+            posti_etichette = [f"{Posto.query.get(pid).fila}{Posto.query.get(pid).numero}" for pid in posto_ids]
+            from email_service import invio_email_conferma
+            invio_email_conferma(email_lower, nome, nome_allieva or '', posti_etichette, codice)
+        except Exception:
+            pass
         return jsonify({
             'prenotazioni': [p.to_dict() for p in created],
             'codice': codice,
@@ -176,6 +182,92 @@ def recupera_prenotazioni():
             'posto_numero': posto.numero if posto else 0,
         })
     return jsonify({'prenotazioni': out})
+
+
+@api_bp.route('/prenotazioni/annulla', methods=['POST'])
+def annulla_prenotazioni():
+    """Annulla tutte le prenotazioni per email+codice; invia email a utente e admin."""
+    data = request.get_json() or {}
+    email = (data.get('email') or '').strip().lower()
+    codice = (data.get('codice') or '').strip()
+    if not email:
+        return jsonify({'error': 'Email richiesta'}), 400
+    if not codice or len(codice) != 6 or not codice.isdigit():
+        return jsonify({'error': 'Codice prenotazione non valido (6 cifre)'}), 400
+    row = CodicePrenotazione.query.filter_by(email=email).first()
+    if not row or row.codice != codice:
+        return jsonify({'error': 'Nessuna prenotazione trovata per questa email e codice.'}), 404
+    pren_list = Prenotazione.query.filter_by(email=row.email, stato='confermata').all()
+    if not pren_list:
+        return jsonify({'ok': True, 'message': 'Nessuna prenotazione attiva'})
+    nome = pren_list[0].nome
+    posti_etichette = []
+    for p in pren_list:
+        posto = Posto.query.get(p.posto_id)
+        if posto:
+            posti_etichette.append(f"{posto.fila}{posto.numero}")
+        p.stato = 'cancellata'
+    db.session.commit()
+    try:
+        from email_service import invio_email_annullamento
+        invio_email_annullamento(email, nome, posti_etichette)
+    except Exception:
+        pass
+    return jsonify({'ok': True})
+
+
+@api_bp.route('/prenotazioni/aggiorna', methods=['POST'])
+def aggiorna_prenotazioni():
+    """Aggiorna le prenotazioni per email+codice: sostituisce i posti con la nuova lista; invia email conferma."""
+    data = request.get_json() or {}
+    email = (data.get('email') or '').strip().lower()
+    codice = (data.get('codice') or '').strip()
+    posto_ids = data.get('posto_ids', [])
+    nome = (data.get('nome') or '').strip() or None
+    nome_allieva = (data.get('nome_allieva') or '').strip() or None
+    if not email:
+        return jsonify({'error': 'Email richiesta'}), 400
+    if not codice or len(codice) != 6 or not codice.isdigit():
+        return jsonify({'error': 'Codice prenotazione non valido (6 cifre)'}), 400
+    row = CodicePrenotazione.query.filter_by(email=email).first()
+    if not row or row.codice != codice:
+        return jsonify({'error': 'Nessuna prenotazione trovata per questa email e codice.'}), 404
+    if not posto_ids:
+        return jsonify({'error': 'Seleziona almeno un posto'}), 400
+    try:
+        _pulisci_blocchi_scaduti()
+        bind = db.session.get_bind()
+        if bind.dialect.name == 'sqlite':
+            db.session.execute(text('BEGIN IMMEDIATE'))
+        old_list = Prenotazione.query.filter_by(email=row.email, stato='confermata').all()
+        nome_final = nome if nome else (old_list[0].nome if old_list else '')
+        nome_allieva_final = nome_allieva if nome_allieva is not None else (old_list[0].nome_allieva if old_list else None)
+        for p in old_list:
+            p.stato = 'cancellata'
+        for pid in posto_ids:
+            posto = Posto.query.get(pid)
+            if not posto:
+                db.session.rollback()
+                return jsonify({'error': f'Posto {pid} non trovato'}), 400
+            if posto.riservato_staff or not posto.disponibile:
+                db.session.rollback()
+                return jsonify({'error': f'Posto {posto.fila}{posto.numero} non disponibile'}), 400
+            if _posto_occupato(posto):
+                db.session.rollback()
+                return jsonify({'error': f'Posto {posto.fila}{posto.numero} già occupato'}), 400
+            pren = Prenotazione(posto_id=pid, nome=nome_final, nome_allieva=nome_allieva_final, email=row.email, stato='confermata')
+            db.session.add(pren)
+        db.session.commit()
+        posti_etichette = [f"{Posto.query.get(pid).fila}{Posto.query.get(pid).numero}" for pid in posto_ids]
+        try:
+            from email_service import invio_email_conferma
+            invio_email_conferma(row.email, nome_final, nome_allieva_final or '', posti_etichette, row.codice)
+        except Exception:
+            pass
+        return jsonify({'ok': True, 'codice': row.codice})
+    except Exception as e:
+        db.session.rollback()
+        return jsonify({'error': str(e)}), 500
 
 
 @api_bp.route('/prenotazioni/<int:pid>', methods=['DELETE'])

@@ -102,6 +102,39 @@ export async function cancellaPrenotazione(id: number): Promise<void> {
   if (!r.ok) throw new Error('Errore cancellazione');
 }
 
+export async function annullaPrenotazioneByCodice(email: string, codice: string): Promise<void> {
+  const r = await fetch(`${API_BASE}/prenotazioni/annulla`, {
+    method: 'POST',
+    headers: { 'Content-Type': 'application/json' },
+    body: JSON.stringify({ email: email.trim().toLowerCase(), codice: codice.trim() }),
+  });
+  const data = await r.json().catch(() => ({}));
+  if (!r.ok) throw new Error(data.error || 'Errore annullamento');
+}
+
+export async function aggiornaPrenotazione(
+  email: string,
+  codice: string,
+  postoIds: number[],
+  nome: string,
+  nomeAllieva: string
+): Promise<{ codice: string }> {
+  const r = await fetch(`${API_BASE}/prenotazioni/aggiorna`, {
+    method: 'POST',
+    headers: { 'Content-Type': 'application/json' },
+    body: JSON.stringify({
+      email: email.trim().toLowerCase(),
+      codice: codice.trim(),
+      posto_ids: postoIds,
+      nome: nome.trim(),
+      nome_allieva: nomeAllieva.trim() || undefined,
+    }),
+  });
+  const data = await r.json().catch(() => ({}));
+  if (!r.ok) throw new Error(data.error || 'Errore aggiornamento');
+  return data;
+}
+
 export async function getPrenotazioni(): Promise<import('../types').Prenotazione[]> {
   const r = await fetch(`${API_BASE}/prenotazioni`);
   if (!r.ok) throw new Error('Errore caricamento prenotazioni');

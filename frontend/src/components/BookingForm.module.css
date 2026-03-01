@@ -107,3 +107,131 @@
   background: #4b5563;
   cursor: not-allowed;
 }
+
+/* Dialog riepilogo */
+.dialogOverlay {
+  position: fixed;
+  inset: 0;
+  background: rgba(0, 0, 0, 0.6);
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  z-index: 1000;
+}
+
+.dialog {
+  background: rgba(30, 30, 35, 0.98);
+  border: 1px solid rgba(255, 255, 255, 0.15);
+  border-radius: 12px;
+  padding: 1.5rem;
+  max-width: 400px;
+  width: 90%;
+}
+
+.dialogTitle {
+  margin: 0 0 1rem 0;
+  font-size: 1.15rem;
+}
+
+.dialogDetails {
+  margin: 0 0 1.25rem 0;
+  font-size: 0.95rem;
+}
+
+.dialogDetails dt {
+  color: rgba(255, 255, 255, 0.65);
+  margin-top: 0.5rem;
+}
+
+.dialogDetails dt:first-child {
+  margin-top: 0;
+}
+
+.dialogDetails dd {
+  margin: 0.2rem 0 0 0;
+  color: #fff;
+}
+
+.dialogActions {
+  display: flex;
+  gap: 0.75rem;
+  justify-content: flex-end;
+}
+
+.dialogBtnSecondary {
+  padding: 0.6rem 1rem;
+  border-radius: 8px;
+  border: 1px solid rgba(255, 255, 255, 0.3);
+  background: transparent;
+  color: #fff;
+  cursor: pointer;
+  font-size: 1rem;
+}
+
+.dialogBtnSecondary:hover:not(:disabled) {
+  background: rgba(255, 255, 255, 0.1);
+}
+
+.dialogBtnPrimary {
+  padding: 0.6rem 1rem;
+  border-radius: 8px;
+  border: none;
+  background: #22c55e;
+  color: #fff;
+  cursor: pointer;
+  font-size: 1rem;
+  font-weight: 600;
+  display: inline-flex;
+  align-items: center;
+  gap: 0.5rem;
+}
+
+.dialogBtnPrimary:hover:not(:disabled) {
+  background: #16a34a;
+}
+
+.dialogBtnPrimary:disabled {
+  background: #4b5563;
+  cursor: not-allowed;
+}
+
+.dialogText {
+  margin: 0 0 1.25rem 0;
+  font-size: 0.95rem;
+  color: rgba(255, 255, 255, 0.9);
+}
+
+.annullaBtn {
+  padding: 0.6rem 1rem;
+  border-radius: 8px;
+  border: 1px solid rgba(239, 68, 68, 0.7);
+  background: transparent;
+  color: #f87171;
+  cursor: pointer;
+  font-size: 1rem;
+  margin-top: 0.5rem;
+}
+
+.annullaBtn:hover:not(:disabled) {
+  background: rgba(239, 68, 68, 0.15);
+}
+
+.annullaConfirmBtn {
+  padding: 0.6rem 1rem;
+  border-radius: 8px;
+  border: none;
+  background: #dc2626;
+  color: #fff;
+  cursor: pointer;
+  font-size: 1rem;
+  font-weight: 600;
+}
+
+.annullaConfirmBtn:hover:not(:disabled) {
+  background: #b91c1c;
+}
+
+.annullaConfirmBtn:disabled {
+  background: #4b5563;
+  cursor: not-allowed;
+}

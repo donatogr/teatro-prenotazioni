@@ -40,7 +40,8 @@ export function TeatroMap({
 }: TeatroMapProps) {
   const handleSeatClick = useCallback(
     (p: Posto) => {
-      if (p.stato === 'occupato' || p.stato === 'non_disponibile' || p.stato === 'bloccato') return
+      if (p.stato === 'non_disponibile' || p.stato === 'bloccato') return
+      if (p.stato === 'occupato' && !selectedIds.includes(p.id)) return
       if (p.stato === 'bloccato_da_me' || selectedIds.includes(p.id)) {
         onSelectionChange(selectedIds.filter((id) => id !== p.id))
       } else {
@@ -103,8 +104,7 @@ export function TeatroMap({
                       .sort((a, b) => b.numero - a.numero)
                       .map((posto) => {
                         const displayStato =
-                          (posto.stato === 'disponibile' && selectedIds.includes(posto.id)) ||
-                          posto.stato === 'bloccato_da_me'
+                          selectedIds.includes(posto.id) || posto.stato === 'bloccato_da_me'
                             ? 'selezionato'
                             : posto.stato
                         return (

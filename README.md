@@ -94,6 +94,19 @@ python seed_example_data.py
 
 Lo script aggiorna sempre le impostazioni; crea i posti solo se la tabella è vuota e aggiunge prenotazioni solo se non ne esistono già. Utile per provare l’app senza configurare tutto a mano.
 
+### Email (conferma e annullamento)
+
+Alla conferma e all'annullamento di una prenotazione il backend può inviare email a utente e amministratore. Sono supportati due provider (il primo configurato ha priorità):
+
+- **Resend** (consigliato): crea una API key su [resend.com](https://resend.com) e imposta le variabili d'ambiente:
+  - `RESEND_API_KEY` – API key di Resend
+  - `MAIL_FROM` – mittente (es. `Teatro Verdi <prenotazioni@tudominio.com>`; per test puoi usare `onboarding@resend.dev` se il dominio è verificato su Resend)
+  - `ADMIN_EMAIL` – (opzionale) email che riceve copia di conferme e annullamenti
+
+- **SMTP**: imposta `MAIL_SERVER`, `MAIL_PORT`, `MAIL_USE_TLS`, `MAIL_USERNAME`, `MAIL_PASSWORD` e opzionalmente `ADMIN_EMAIL`. Richiede il pacchetto `Flask-Mail` se non usi Resend.
+
+Se nessun provider è configurato, le email vengono solo scritte nei log.
+
 ## Frontend
 
 ```bash

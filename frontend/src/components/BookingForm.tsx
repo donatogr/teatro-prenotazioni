@@ -1,9 +1,17 @@
-import { useState, useMemo } from 'react'
-import { creaPrenotazione } from '../services/api'
+import { useState, useMemo, useEffect } from 'react'
+import { creaPrenotazione, aggiornaPrenotazione, annullaPrenotazioneByCodice } from '../services/api'
 import type { Posto } from '../types'
 import styles from './BookingForm.module.css'
 
 const EMAIL_RE = /^[^\s@]+@[^\s@]+\.[^\s@]+$/
+
+export interface RecuperoData {
+  prenotazioni: { id: number; posto_id: number; nome: string; nome_allieva?: string; email: string }[]
+  nome: string
+  email: string
+  nomeAllieva: string
+  codice: string
+}
 
 interface BookingFormProps {
   posti: Posto[]
@@ -12,6 +20,10 @@ interface BookingFormProps {
   onError: (msg: string) => void
   disabled?: boolean
   sessionId?: string
+  recuperoData?: RecuperoData | null
+  onRecuperoCancel?: () => void
+  onAggiornaSuccess?: (codice: string) => void
+  fetchPosti?: () => void
 }
 
 export function BookingForm({
@@ -21,6 +33,10 @@ export function BookingForm({
   onError,
   disabled,
   sessionId = '',
+  recuperoData = null,
+  onRecuperoCancel,
+  onAggiornaSuccess,
+  fetchPosti,
 }: BookingFormProps) {
   const selectedList = useMemo(() => {
     const byId = new Map(posti.map((p) => [p.id, p]))
@@ -35,8 +51,18 @@ export function BookingForm({
   const [nomeAllieva, setNomeAllieva] = useState('')
   const [email, setEmail] = useState('')
   const [loading, setLoading] = useState(false)
+  const [showConfirmDialog, setShowConfirmDialog] = useState(false)
+  const [showAnnullaConfirm, setShowAnnullaConfirm] = useState(false)
 
-  const handleSubmit = async (e: React.FormEvent) => {
+  useEffect(() => {
+    if (recuperoData) {
+      setNome(recuperoData.nome)
+      setEmail(recuperoData.email)
+      setNomeAllieva(recuperoData.nomeAllieva || '')
+    }
+  }, [recuperoData])
+
+  const handleSubmit = (e: React.FormEvent) => {
     e.preventDefault()
     const n = nome.trim()
     const eVal = email.trim()
@@ -56,10 +82,17 @@ export function BookingForm({
       onError('Seleziona almeno un posto')
       return
     }
-    setLoading(true)
     onError('')
+    setShowConfirmDialog(true)
+  }
+
+  const handleProcedi = async () => {
+    const n = nome.trim()
+    const eVal = email.trim()
+    setLoading(true)
     try {
       const res = await creaPrenotazione(selectedIds, n, nomeAllieva.trim(), eVal, sessionId)
+      setShowConfirmDialog(false)
       setNome('')
       setNomeAllieva('')
       setEmail('')
@@ -71,9 +104,52 @@ export function BookingForm({
     }
   }
 
+  const handleConfermaModifiche = async () => {
+    if (!recuperoData) return
+    const n = nome.trim()
+    const eVal = email.trim()
+    if (!n || !eVal || !EMAIL_RE.test(eVal)) {
+      onError('Nome e email validi richiesti')
+      return
+    }
+    if (selectedIds.length === 0) {
+      onError('Seleziona almeno un posto')
+      return
+    }
+    setLoading(true)
+    onError('')
+    try {
+      await aggiornaPrenotazione(recuperoData.email, recuperoData.codice, selectedIds, n, nomeAllieva.trim())
+      onAggiornaSuccess?.(recuperoData.codice)
+    } catch (err) {
+      onError(err instanceof Error ? err.message : 'Errore aggiornamento')
+    } finally {
+      setLoading(false)
+    }
+  }
+
+  const handleAnnullaPrenotazione = async () => {
+    if (!recuperoData) return
+    setLoading(true)
+    onError('')
+    try {
+      await annullaPrenotazioneByCodice(recuperoData.email, recuperoData.codice)
+      setShowAnnullaConfirm(false)
+      onRecuperoCancel?.()
+      fetchPosti?.()
+      onSuccess()
+    } catch (err) {
+      onError(err instanceof Error ? err.message : 'Errore annullamento')
+    } finally {
+      setLoading(false)
+    }
+  }
+
   return (
     <form className={styles.form} onSubmit={handleSubmit} noValidate>
-      <h3 className={styles.title}>Completa la prenotazione</h3>
+      <h3 className={styles.title}>
+        {recuperoData ? 'Modifica o annulla la prenotazione' : 'Completa la prenotazione'}
+      </h3>
       <div className={styles.field}>
         <label htmlFor="nome">Nome</label>
         <input
@@ -104,7 +180,7 @@ export function BookingForm({
           value={email}
           onChange={(e) => setEmail(e.target.value)}
           placeholder="email@esempio.it"
-          disabled={disabled}
+          disabled={disabled || !!recuperoData}
         />
       </div>
       <p className={styles.hint}>
@@ -126,14 +202,101 @@ export function BookingForm({
           .
         </p>
       )}
-      <button
-        type="submit"
-        className={styles.submit}
-        disabled={disabled || loading || selectedIds.length === 0}
-      >
-        {loading && <span className={styles.spinner} aria-hidden />}
-        {loading ? 'Prenotazione in corso...' : 'Conferma prenotazione'}
-      </button>
+      {recuperoData ? (
+        <>
+          <button
+            type="button"
+            className={styles.submit}
+            onClick={handleConfermaModifiche}
+            disabled={disabled || loading || selectedIds.length === 0}
+          >
+            {loading && <span className={styles.spinner} aria-hidden />}
+            {loading ? 'Salvataggio...' : 'Conferma modifiche'}
+          </button>
+          <button
+            type="button"
+            className={styles.annullaBtn}
+            onClick={() => setShowAnnullaConfirm(true)}
+            disabled={loading}
+          >
+            Annulla prenotazione
+          </button>
+          {showAnnullaConfirm && (
+            <div className={styles.dialogOverlay} role="dialog" aria-modal="true" aria-labelledby="annulla-dialog-title">
+              <div className={styles.dialog}>
+                <h3 id="annulla-dialog-title" className={styles.dialogTitle}>Annullare la prenotazione?</h3>
+                <p className={styles.dialogText}>
+                  Tutti i posti prenotati saranno liberati. Riceverai un&apos;email di conferma dell&apos;annullamento.
+                </p>
+                <div className={styles.dialogActions}>
+                  <button
+                    type="button"
+                    className={styles.dialogBtnSecondary}
+                    onClick={() => setShowAnnullaConfirm(false)}
+                    disabled={loading}
+                  >
+                    No, mantieni
+                  </button>
+                  <button
+                    type="button"
+                    className={styles.annullaConfirmBtn}
+                    onClick={handleAnnullaPrenotazione}
+                    disabled={loading}
+                  >
+                    {loading ? '...' : 'Sì, annulla'}
+                  </button>
+                </div>
+              </div>
+            </div>
+          )}
+        </>
+      ) : (
+        <button
+          type="submit"
+          className={styles.submit}
+          disabled={disabled || loading || selectedIds.length === 0}
+        >
+          {loading && <span className={styles.spinner} aria-hidden />}
+          {loading ? 'Prenotazione in corso...' : 'Conferma'}
+        </button>
+      )}
+
+      {showConfirmDialog && (
+        <div className={styles.dialogOverlay} role="dialog" aria-modal="true" aria-labelledby="dialog-title">
+          <div className={styles.dialog}>
+            <h3 id="dialog-title" className={styles.dialogTitle}>Riepilogo prenotazione</h3>
+            <dl className={styles.dialogDetails}>
+              <dt>Nome e cognome</dt>
+              <dd>{nome.trim()}</dd>
+              <dt>Allieva</dt>
+              <dd>{nomeAllieva.trim() || '—'}</dd>
+              <dt>Email</dt>
+              <dd>{email.trim()}</dd>
+              <dt>Posti prenotati</dt>
+              <dd>{selectedList || selectedIds.join(', ')}</dd>
+            </dl>
+            <div className={styles.dialogActions}>
+              <button
+                type="button"
+                className={styles.dialogBtnSecondary}
+                onClick={() => setShowConfirmDialog(false)}
+                disabled={loading}
+              >
+                Indietro
+              </button>
+              <button
+                type="button"
+                className={styles.dialogBtnPrimary}
+                onClick={handleProcedi}
+                disabled={loading}
+              >
+                {loading && <span className={styles.spinner} aria-hidden />}
+                {loading ? 'Prenotazione in corso...' : 'Procedi'}
+              </button>
+            </div>
+          </div>
+        </div>
+      )}
     </form>
   )
 }

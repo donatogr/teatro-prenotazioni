@@ -2,7 +2,7 @@ import { useState, useEffect, useCallback, useRef } from 'react'
 import type { Posto } from './types'
 import { getPosti, getSpettacolo, bloccaPosti, rinnovaBlocchi, rilascioBlocchi } from './services/api'
 import { TeatroMap } from './components/TeatroMap'
-import { BookingForm } from './components/BookingForm'
+import { BookingForm, type RecuperoData } from './components/BookingForm'
 import { RecuperaPrenotazione } from './components/RecuperaPrenotazione'
 import { AdminPanel } from './components/AdminPanel'
 import styles from './App.module.css'
@@ -41,6 +41,7 @@ function App() {
       return false
     }
   })
+  const [recuperoData, setRecuperoData] = useState<RecuperoData | null>(null)
 
   const fetchSpettacolo = useCallback(() => {
     getSpettacolo().then(setSpettacolo)
@@ -264,6 +265,19 @@ function App() {
             onError={setError}
             disabled={posti.length === 0}
             sessionId={sessionId}
+            recuperoData={recuperoData}
+            onRecuperoCancel={() => {
+              setRecuperoData(null)
+              setSelectedIds([])
+              fetchPosti()
+            }}
+            onAggiornaSuccess={(codice) => {
+              setRecuperoData(null)
+              handleBookingSuccess(codice, false)
+              setSelectedIds([])
+              fetchPosti()
+            }}
+            fetchPosti={fetchPosti}
           />
           {selectedIds.length > 0 && (
             <button
@@ -274,7 +288,13 @@ function App() {
               Pulisci selezione
             </button>
           )}
-          <RecuperaPrenotazione />
+          <RecuperaPrenotazione
+            onRecuperoSuccess={(data) => {
+              setRecuperoData(data)
+              setSelectedIds(data.prenotazioni.map((p: { posto_id: number }) => p.posto_id))
+              setError('')
+            }}
+          />
         </div>
       </main>
 
