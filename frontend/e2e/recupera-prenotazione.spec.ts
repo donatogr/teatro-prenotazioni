@@ -6,7 +6,7 @@ test.describe('Recupera prenotazione', () => {
   }) => {
     await page.goto('/')
 
-    await expect(page.getByText(/Disponibile|Prenotato/)).toBeVisible({ timeout: 10000 })
+    await expect(page.getByText(/Disponibile|Prenotato/).first()).toBeVisible({ timeout: 10000 })
 
     const postoDisponibile = page.getByRole('button', { name: /Posto .*, disponibile/ }).first()
     await postoDisponibile.click()
@@ -14,7 +14,11 @@ test.describe('Recupera prenotazione', () => {
     const email = 'recupero.e2e@test.it'
     await page.getByLabel('Nome').fill('Utente Recupero')
     await page.getByLabel('Email').fill(email)
-    await page.getByRole('button', { name: /Conferma prenotazione/i }).click()
+    await page.getByRole('button', { name: /^Conferma$/i }).click()
+    await expect(page.getByRole('dialog').getByText(/Riepilogo prenotazione/i)).toBeVisible({
+      timeout: 5000,
+    })
+    await page.getByRole('button', { name: /Procedi/i }).click()
 
     await expect(page.getByText(/Prenotazione confermata/i)).toBeVisible({ timeout: 10000 })
     const codeBox = page.locator('[class*="codeValue"]').first()

@@ -33,3 +33,7 @@ Thumbs.db
 # Build / log
 *.log
 .cache/
+
+# Playwright
+frontend/playwright-report/
+frontend/test-results/

@@ -19,7 +19,7 @@ describe('BookingForm', () => {
     )
     expect(screen.getByPlaceholderText(/nome e cognome/i)).toBeInTheDocument()
     expect(screen.getByLabelText(/email/i)).toBeInTheDocument()
-    expect(screen.getByRole('button', { name: /conferma prenotazione/i })).toBeInTheDocument()
+    expect(screen.getByRole('button', { name: /conferma/i })).toBeInTheDocument()
   })
 
   it('chiama onError se nome vuoto', async () => {
@@ -86,6 +86,11 @@ describe('BookingForm', () => {
     })
 
     await user.click(screen.getByRole('button', { name: /conferma/i }))
+    await waitFor(() => {
+      expect(screen.getByRole('dialog')).toBeInTheDocument()
+      expect(screen.getByText(/Riepilogo prenotazione/i)).toBeInTheDocument()
+    })
+    await user.click(screen.getByRole('button', { name: /procedi/i }))
 
     await waitFor(() => {
       expect(onSuccess).toHaveBeenCalledWith('123456', true)
