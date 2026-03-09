@@ -43,6 +43,7 @@ function App() {
   })
   const [recuperoData, setRecuperoData] = useState<RecuperoData | null>(null)
   const [postSuccessDismissed, setPostSuccessDismissed] = useState(false)
+  const [showThankYou, setShowThankYou] = useState(false)
   const successTimeoutRef = useRef<ReturnType<typeof setTimeout> | null>(null)
   const mainRef = useRef<HTMLElement | null>(null)
 
@@ -202,6 +203,21 @@ function App() {
     }
   }
 
+  if (showThankYou) {
+    return (
+      <div className={styles.app}>
+        <div className={styles.thankYouScreen} role="status">
+          <p className={styles.thankYouText}>
+            Grazie per aver prenotato. Prendi contatti con la scuola per procedere con il pagamento.
+          </p>
+          <p className={styles.thankYouText}>
+            Ora puoi chiudere questa finestra.
+          </p>
+        </div>
+      </div>
+    )
+  }
+
   return (
     <div className={styles.app}>
       <header className={styles.header}>
@@ -255,7 +271,7 @@ function App() {
             <button
               type="button"
               className={styles.codeBoxBtnSecondary}
-              onClick={() => dismissSuccessBox(true)}
+              onClick={() => setShowThankYou(true)}
             >
               Ho finito
             </button>
