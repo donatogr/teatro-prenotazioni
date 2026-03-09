@@ -74,7 +74,7 @@ export function AdminPanel({ onClose, onFileChange }: AdminPanelProps) {
   const [toastMessage, setToastMessage] = useState('')
   const [exportLoading, setExportLoading] = useState(false)
   const [exportSearch, setExportSearch] = useState('')
-  type SortKey = 'nome' | 'email' | 'count' | 'timestamp'
+  type SortKey = 'nome' | 'telefono' | 'count' | 'timestamp'
   const [exportSort, setExportSort] = useState<{ key: SortKey; dir: 1 | -1 } | null>(null)
   const [selectedRow, setSelectedRow] = useState<ExportByPerson | null>(null)
   const [lastExportAt, setLastExportAt] = useState<Date | null>(null)
@@ -180,8 +180,8 @@ export function AdminPanel({ onClose, onFileChange }: AdminPanelProps) {
     const m = new Map<string, string>()
     let i = 0
     posti.forEach((p) => {
-      if (p.stato === 'occupato' && (p.prenotazione_nome != null || p.prenotazione_email != null)) {
-        const key = `${p.prenotazione_nome ?? ''}\0${p.prenotazione_email ?? ''}`
+      if (p.stato === 'occupato' && (p.prenotazione_nome != null || p.prenotazione_telefono != null)) {
+        const key = `${p.prenotazione_nome ?? ''}\0${p.prenotazione_telefono ?? ''}`
         if (!m.has(key)) m.set(key, PERSON_COLORS[i++ % PERSON_COLORS.length])
       }
     })
@@ -196,7 +196,7 @@ export function AdminPanel({ onClose, onFileChange }: AdminPanelProps) {
           (r) =>
             (r.nome ?? '').toLowerCase().includes(q) ||
             (r.nome_allieva ?? '').toLowerCase().includes(q) ||
-            (r.email ?? '').toLowerCase().includes(q)
+            (r.telefono ?? '').includes(q)
         )
       : [...exportData.byPerson]
     if (exportSort) {
@@ -207,7 +207,7 @@ export function AdminPanel({ onClose, onFileChange }: AdminPanelProps) {
           const ta = a.timestamp ?? ''
           const tb = b.timestamp ?? ''
           cmp = ta.localeCompare(tb)
-        } else cmp = (exportSort.key === 'nome' ? (a.nome ?? '') : (a.email ?? '')).localeCompare(exportSort.key === 'nome' ? (b.nome ?? '') : (b.email ?? ''))
+        } else cmp = (exportSort.key === 'nome' ? (a.nome ?? '') : (a.telefono ?? '')).localeCompare(exportSort.key === 'nome' ? (b.nome ?? '') : (b.telefono ?? ''))
         return exportSort.dir * cmp
       })
     }
@@ -310,7 +310,7 @@ export function AdminPanel({ onClose, onFileChange }: AdminPanelProps) {
             doc.addPage()
             y = 15
           }
-          doc.text(`${r.posto} – ${r.nome}${r.nome_allieva ? ` – Allieva: ${r.nome_allieva}` : ''} – ${r.email}`, 14, y)
+          doc.text(`${r.posto} – ${r.nome}${r.nome_allieva ? ` – Allieva: ${r.nome_allieva}` : ''} – ${r.telefono}`, 14, y)
           y += lineH
         })
       }
@@ -324,7 +324,7 @@ export function AdminPanel({ onClose, onFileChange }: AdminPanelProps) {
           doc.addPage()
           y = 15
         }
-        doc.text(`${r.nome}${r.nome_allieva ? ` – Allieva: ${r.nome_allieva}` : ''} (${r.email}) – ${r.count} posto/i: ${r.posti.join(', ')}`, 14, y)
+        doc.text(`${r.nome}${r.nome_allieva ? ` – Allieva: ${r.nome_allieva}` : ''} (${r.telefono}) – ${r.count} posto/i: ${r.posti.join(', ')}`, 14, y)
         y += lineH
       })
       doc.save('prenotazioni-teatro.pdf')
@@ -341,7 +341,7 @@ export function AdminPanel({ onClose, onFileChange }: AdminPanelProps) {
           Posto: r.posto,
           Nome: r.nome,
           'Nome allieva': r.nome_allieva ?? '',
-          Email: r.email,
+          Telefono: r.telefono,
         }))
       )
       XLSX.utils.book_append_sheet(wb, sheetPosti, 'Per posto')
@@ -349,7 +349,7 @@ export function AdminPanel({ onClose, onFileChange }: AdminPanelProps) {
         exportData.byPerson.map((r) => ({
           Nome: r.nome,
           'Nome allieva': r.nome_allieva ?? '',
-          Email: r.email,
+          Telefono: r.telefono,
           'N. posti': r.count,
           Posti: r.posti.join(', '),
           Data: r.timestamp ? new Date(r.timestamp).toLocaleString('it-IT') : '',
@@ -366,10 +366,10 @@ export function AdminPanel({ onClose, onFileChange }: AdminPanelProps) {
     const win = window.open('', '_blank')
     if (!win) return
     const rowsByPerson = exportData.byPerson
-      .map((r) => `<tr><td>${r.nome}</td><td>${r.nome_allieva ?? ''}</td><td>${r.email}</td><td>${r.count}</td><td>${r.posti.join(', ')}</td></tr>`)
+      .map((r) => `<tr><td>${r.nome}</td><td>${r.nome_allieva ?? ''}</td><td>${r.telefono}</td><td>${r.count}</td><td>${r.posti.join(', ')}</td></tr>`)
       .join('')
     const rowsBySeat = exportData.bySeat
-      .map((r) => `<tr><td>${r.posto}</td><td>${r.nome}</td><td>${r.nome_allieva ?? ''}</td><td>${r.email}</td></tr>`)
+      .map((r) => `<tr><td>${r.posto}</td><td>${r.nome}</td><td>${r.nome_allieva ?? ''}</td><td>${r.telefono}</td></tr>`)
       .join('')
     win.document.write(`
       <!DOCTYPE html><html><head><title>Prenotazioni</title><meta charset="utf-8"></head><body>
@@ -547,7 +547,7 @@ export function AdminPanel({ onClose, onFileChange }: AdminPanelProps) {
                     <input
                       type="search"
                       className={styles.exportSearch}
-                      placeholder="Cerca per nome o email..."
+                      placeholder="Cerca per nome o telefono..."
                       value={exportSearch}
                       onChange={(e) => setExportSearch(e.target.value)}
                       aria-label="Cerca nell'elenco prenotazioni"
@@ -563,8 +563,8 @@ export function AdminPanel({ onClose, onFileChange }: AdminPanelProps) {
                             </th>
                             <th>Allieva</th>
                             <th>
-                              <button type="button" className={styles.thSort} onClick={() => setExportSort((s) => (s?.key === 'email' ? { key: 'email', dir: (s.dir * -1) as 1 | -1 } : { key: 'email', dir: 1 }))}>
-                                Email {exportSort?.key === 'email' ? (exportSort.dir === 1 ? '↑' : '↓') : ''}
+                              <button type="button" className={styles.thSort} onClick={() => setExportSort((s) => (s?.key === 'telefono' ? { key: 'telefono', dir: (s.dir * -1) as 1 | -1 } : { key: 'telefono', dir: 1 }))}>
+                                Telefono {exportSort?.key === 'telefono' ? (exportSort.dir === 1 ? '↑' : '↓') : ''}
                               </button>
                             </th>
                             <th>
@@ -589,7 +589,7 @@ export function AdminPanel({ onClose, onFileChange }: AdminPanelProps) {
                             </tr>
                           ) : (
                             exportFilteredAndSorted.map((r, i) => {
-                              const personKey = `${r.nome}\0${r.email}`
+                              const personKey = `${r.nome}\0${r.telefono}`
                               const cellColor = personColorMap.get(personKey)
                               return (
                                 <tr
@@ -599,11 +599,11 @@ export function AdminPanel({ onClose, onFileChange }: AdminPanelProps) {
                                   role="button"
                                   tabIndex={0}
                                   onKeyDown={(e) => e.key === 'Enter' && setSelectedRow(r)}
-                                  aria-label={`Dettaglio ${r.nome} ${r.email}`}
+                                  aria-label={`Dettaglio ${r.nome} ${r.telefono}`}
                                 >
                                   <td>{r.nome}</td>
                                   <td>{r.nome_allieva ?? ''}</td>
-                                  <td>{r.email}</td>
+                                  <td>{r.telefono}</td>
                                   <td className={cellColor ? styles.countCellColored : undefined} style={cellColor ? { backgroundColor: cellColor, borderColor: cellColor } : undefined}>
                                     {r.count}
                                   </td>
@@ -644,7 +644,7 @@ export function AdminPanel({ onClose, onFileChange }: AdminPanelProps) {
               <dl className={styles.rowDrawerBody}>
                 <dt>Nome</dt><dd>{selectedRow.nome}</dd>
                 {selectedRow.nome_allieva && (<><dt>Allieva</dt><dd>{selectedRow.nome_allieva}</dd></>)}
-                <dt>Email</dt><dd>{selectedRow.email}</dd>
+                <dt>Telefono</dt><dd>{selectedRow.telefono}</dd>
                 <dt>Data</dt><dd>{formatExportDate(selectedRow.timestamp)}</dd>
                 <dt>Posti</dt><dd>{selectedRow.posti.join(', ')}</dd>
               </dl>
@@ -951,7 +951,7 @@ function MappaPrenotazioni({
                             .map((posto) => {
                               const occupato = posto.stato === 'occupato'
                               const isRiservato = posto.riservato_staff
-                              const personKey = occupato ? `${posto.prenotazione_nome ?? ''}\0${posto.prenotazione_email ?? ''}` : ''
+                              const personKey = occupato ? `${posto.prenotazione_nome ?? ''}\0${posto.prenotazione_telefono ?? ''}` : ''
                               const color = occupato ? personColorMap.get(personKey) : undefined
                               return (
                                 <button

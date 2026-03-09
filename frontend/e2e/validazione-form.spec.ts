@@ -8,13 +8,13 @@ test.describe('Validazione form', () => {
     const postoDisponibile = page.getByRole('button', { name: /Posto .*, disponibile/ }).first()
     await postoDisponibile.click()
 
-    await page.locator('#email').fill('test@test.it')
+    await page.locator('#telefono').fill('3331234567')
     await page.getByRole('button', { name: /^Conferma$/i }).click()
 
     await expect(page.getByText(/Inserisci il nome/i)).toBeVisible({ timeout: 5000 })
   })
 
-  test('con posti selezionati, submit senza email mostra errore', async ({ page }) => {
+  test('con posti selezionati, submit senza telefono mostra errore', async ({ page }) => {
     await page.goto('/')
     await expect(page.getByText(/Disponibile|Prenotato/).first()).toBeVisible({ timeout: 10000 })
 
@@ -24,10 +24,10 @@ test.describe('Validazione form', () => {
     await page.locator('#nome').fill('Mario Rossi')
     await page.getByRole('button', { name: /^Conferma$/i }).click()
 
-    await expect(page.getByText(/Inserisci l'email/i)).toBeVisible({ timeout: 5000 })
+    await expect(page.getByText(/Inserisci il numero di telefono/i)).toBeVisible({ timeout: 5000 })
   })
 
-  test('con posti selezionati, email non valida mostra errore', async ({ page }) => {
+  test('con posti selezionati, telefono non valido mostra errore', async ({ page }) => {
     await page.goto('/')
     await expect(page.getByText(/Disponibile|Prenotato/).first()).toBeVisible({ timeout: 10000 })
 
@@ -35,10 +35,10 @@ test.describe('Validazione form', () => {
     await postoDisponibile.click()
 
     await page.locator('#nome').fill('Mario Rossi')
-    await page.locator('#email').fill('non-email')
+    await page.locator('#telefono').fill('123')
     await page.getByRole('button', { name: /^Conferma$/i }).click()
 
-    await expect(page.getByText(/Email non valida/i)).toBeVisible({ timeout: 5000 })
+    await expect(page.getByText(/9 a 11 cifre|telefono/i)).toBeVisible({ timeout: 5000 })
   })
 
   test('senza posti selezionati il pulsante Conferma è disabilitato', async ({ page }) => {

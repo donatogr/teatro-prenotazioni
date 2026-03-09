@@ -48,14 +48,14 @@ class Blocco(db.Model):
 
 
 class CodicePrenotazione(db.Model):
-    """Codice 6 cifre univoco per email, assegnato alla prima prenotazione."""
+    """Codice 6 cifre univoco per telefono, assegnato alla prima prenotazione."""
     __tablename__ = 'codici_prenotazione'
     id = db.Column(db.Integer, primary_key=True)
-    email = db.Column(db.String(120), nullable=False, unique=True, index=True)
+    telefono = db.Column(db.String(20), nullable=False, unique=True, index=True)
     codice = db.Column(db.String(6), nullable=False, unique=True)
 
     def __repr__(self):
-        return f'<CodicePrenotazione email={self.email!r} codice={self.codice!r}>'
+        return f'<CodicePrenotazione telefono={self.telefono!r} codice={self.codice!r}>'
 
 
 class Prenotazione(db.Model):
@@ -64,7 +64,7 @@ class Prenotazione(db.Model):
     posto_id = db.Column(db.Integer, db.ForeignKey('posti.id'), nullable=False)
     nome = db.Column(db.String(120), nullable=False)
     nome_allieva = db.Column(db.String(120), default='', nullable=True)
-    email = db.Column(db.String(120), nullable=False)
+    telefono = db.Column(db.String(20), nullable=False)
     timestamp = db.Column(db.DateTime, default=datetime.utcnow)
     stato = db.Column(db.String(20), default='confermata', nullable=False)  # confermata, cancellata
 
@@ -74,7 +74,7 @@ class Prenotazione(db.Model):
             'posto_id': self.posto_id,
             'nome': self.nome,
             'nome_allieva': self.nome_allieva or '',
-            'email': self.email,
+            'telefono': self.telefono,
             'timestamp': self.timestamp.isoformat() if self.timestamp else None,
             'stato': self.stato
         }

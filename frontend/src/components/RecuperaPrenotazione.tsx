@@ -4,9 +4,18 @@ import type { PrenotazioneConPosto } from '../types'
 import type { RecuperoData } from './BookingForm'
 import styles from './RecuperaPrenotazione.module.css'
 
-const EMAIL_RE = /^[^\s@]+@[^\s@]+\.[^\s@]+$/
-
 const RECUPERA_TITLE_ID = 'recupera-prenotazione-title'
+
+function normalizzaTelefono(val: string): string {
+  return (val || '').replace(/\D/g, '')
+}
+
+function validaTelefono(val: string): string | null {
+  const t = normalizzaTelefono(val)
+  if (!t) return 'Inserisci il numero di telefono'
+  if (t.length < 9 || t.length > 11) return 'Il numero deve avere da 9 a 11 cifre (senza prefisso)'
+  return null
+}
 
 interface RecuperaPrenotazioneProps {
   onRecuperoSuccess?: (data: RecuperoData) => void
@@ -14,7 +23,7 @@ interface RecuperaPrenotazioneProps {
 
 export function RecuperaPrenotazione({ onRecuperoSuccess }: RecuperaPrenotazioneProps) {
   const [open, setOpen] = useState(false)
-  const [email, setEmail] = useState('')
+  const [telefono, setTelefono] = useState('')
   const [codice, setCodice] = useState('')
   const [loading, setLoading] = useState(false)
   const [error, setError] = useState('')
@@ -22,14 +31,10 @@ export function RecuperaPrenotazione({ onRecuperoSuccess }: RecuperaPrenotazione
 
   const handleSubmit = async (e: React.FormEvent) => {
     e.preventDefault()
-    const eVal = email.trim()
+    const errTel = validaTelefono(telefono)
     const cVal = codice.trim()
-    if (!eVal) {
-      setError('Inserisci l\'email')
-      return
-    }
-    if (!EMAIL_RE.test(eVal)) {
-      setError('Email non valida')
+    if (errTel) {
+      setError(errTel)
       return
     }
     if (!cVal || cVal.length !== 6 || !/^\d+$/.test(cVal)) {
@@ -39,8 +44,9 @@ export function RecuperaPrenotazione({ onRecuperoSuccess }: RecuperaPrenotazione
     setLoading(true)
     setError('')
     setPrenotazioni(null)
+    const telNorm = normalizzaTelefono(telefono)
     try {
-      const res = await recuperaPrenotazioni(eVal, cVal)
+      const res = await recuperaPrenotazioni(telNorm, cVal)
       setPrenotazioni(res.prenotazioni)
       if (res.prenotazioni.length > 0 && onRecuperoSuccess) {
         const first = res.prenotazioni[0]
@@ -50,10 +56,10 @@ export function RecuperaPrenotazione({ onRecuperoSuccess }: RecuperaPrenotazione
             posto_id: p.posto_id,
             nome: p.nome,
             nome_allieva: p.nome_allieva,
-            email: p.email,
+            telefono: p.telefono,
           })),
           nome: first.nome,
-          email: eVal,
+          telefono: telNorm,
           nomeAllieva: first.nome_allieva || '',
           codice: cVal,
         })
@@ -84,21 +90,23 @@ export function RecuperaPrenotazione({ onRecuperoSuccess }: RecuperaPrenotazione
         onClick={() => setOpen((o) => !o)}
         aria-expanded={open}
       >
-        Hai già prenotato? Recupera con email e codice
+        Hai già prenotato? Recupera con telefono e codice
       </button>
       {open && (
         <div className={styles.content} role="region" aria-labelledby={RECUPERA_TITLE_ID}>
         <form className={styles.form} onSubmit={handleSubmit}>
-          <p className={styles.hint}>Inserisci email e codice ricevuto alla prima prenotazione.</p>
+          <p className={styles.hint}>Inserisci telefono e codice ricevuto alla prima prenotazione.</p>
           <div className={styles.field}>
-            <label htmlFor="recupera-email">Email</label>
+            <label htmlFor="recupera-telefono">Telefono</label>
             <input
-              id="recupera-email"
-              type="email"
-              value={email}
-              onChange={(e) => setEmail(e.target.value)}
-              placeholder="email@esempio.it"
+              id="recupera-telefono"
+              type="tel"
+              inputMode="numeric"
+              value={telefono}
+              onChange={(e) => setTelefono(e.target.value.replace(/\D/g, ''))}
+              placeholder="333 1234567"
               disabled={loading}
+              maxLength={11}
             />
           </div>
           <div className={styles.field}>

@@ -13,12 +13,12 @@ describe('BookingForm', () => {
     onError.mockClear()
   })
 
-  it('mostra il form con nome, email e pulsante', () => {
+  it('mostra il form con nome, telefono e pulsante', () => {
     render(
       <BookingForm posti={[{ id: 1, fila: 'A', numero: 1, disponibile: true, riservato_staff: false, stato: 'disponibile' }]} selectedIds={[1]} onSuccess={onSuccess} onError={onError} />
     )
     expect(screen.getByPlaceholderText(/nome e cognome/i)).toBeInTheDocument()
-    expect(screen.getByLabelText(/email/i)).toBeInTheDocument()
+    expect(screen.getByLabelText(/telefono/i)).toBeInTheDocument()
     expect(screen.getByRole('button', { name: /conferma/i })).toBeInTheDocument()
   })
 
@@ -27,31 +27,31 @@ describe('BookingForm', () => {
     render(
       <BookingForm posti={[{ id: 1, fila: 'A', numero: 1, disponibile: true, riservato_staff: false, stato: 'disponibile' }]} selectedIds={[1]} onSuccess={onSuccess} onError={onError} />
     )
-    await user.type(screen.getByLabelText(/email/i), 'test@test.it')
+    await user.type(screen.getByLabelText(/telefono/i), '3331234567')
     await user.click(screen.getByRole('button', { name: /conferma/i }))
     expect(onError).toHaveBeenCalledWith('Inserisci il nome')
     expect(onSuccess).not.toHaveBeenCalled()
   })
 
-  it('chiama onError se email vuota', async () => {
+  it('chiama onError se telefono vuoto', async () => {
     const user = userEvent.setup()
     render(
       <BookingForm posti={[{ id: 1, fila: 'A', numero: 1, disponibile: true, riservato_staff: false, stato: 'disponibile' }]} selectedIds={[1]} onSuccess={onSuccess} onError={onError} />
     )
     await user.type(screen.getByPlaceholderText(/nome e cognome/i), 'Mario')
     await user.click(screen.getByRole('button', { name: /conferma/i }))
-    expect(onError).toHaveBeenCalledWith("Inserisci l'email")
+    expect(onError).toHaveBeenCalledWith('Inserisci il numero di telefono')
   })
 
-  it('chiama onError se email non valida', async () => {
+  it('chiama onError se telefono non valido', async () => {
     const user = userEvent.setup()
     render(
       <BookingForm posti={[{ id: 1, fila: 'A', numero: 1, disponibile: true, riservato_staff: false, stato: 'disponibile' }]} selectedIds={[1]} onSuccess={onSuccess} onError={onError} />
     )
     await user.type(screen.getByPlaceholderText(/nome e cognome/i), 'Mario')
-    await user.type(screen.getByLabelText(/email/i), 'non-email')
+    await user.type(screen.getByLabelText(/telefono/i), '123')
     await user.click(screen.getByRole('button', { name: /conferma/i }))
-    expect(onError).toHaveBeenCalledWith('Email non valida')
+    expect(onError).toHaveBeenCalledWith('Il numero deve avere da 9 a 11 cifre (senza prefisso)')
   })
 
   it('chiama onError se nessun posto selezionato', async () => {
@@ -59,7 +59,7 @@ describe('BookingForm', () => {
       <BookingForm posti={[]} selectedIds={[]} onSuccess={onSuccess} onError={onError} />
     )
     await userEvent.type(screen.getByPlaceholderText(/nome e cognome/i), 'Mario')
-    await userEvent.type(screen.getByLabelText(/email/i), 'mario@test.it')
+    await userEvent.type(screen.getByLabelText(/telefono/i), '3331234567')
     const btn = screen.getByRole('button', { name: /conferma/i })
     expect(btn).toBeDisabled()
   })
@@ -76,13 +76,13 @@ describe('BookingForm', () => {
       <BookingForm posti={[{ id: 1, fila: 'A', numero: 1, disponibile: true, riservato_staff: false, stato: 'disponibile' }]} selectedIds={[1]} onSuccess={onSuccess} onError={onError} />
     )
     const nomeInput = screen.getByPlaceholderText(/nome e cognome/i)
-    const emailInput = screen.getByLabelText(/email/i)
+    const telefonoInput = screen.getByLabelText(/telefono/i)
     await user.type(nomeInput, 'Mario Rossi')
-    await user.type(emailInput, 'mario@test.it')
+    await user.type(telefonoInput, '3331234567')
 
     await waitFor(() => {
       expect((nomeInput as HTMLInputElement).value).toBe('Mario Rossi')
-      expect((emailInput as HTMLInputElement).value).toBe('mario@test.it')
+      expect((telefonoInput as HTMLInputElement).value).toBe('3331234567')
     })
 
     await user.click(screen.getByRole('button', { name: /conferma/i }))
@@ -95,16 +95,16 @@ describe('BookingForm', () => {
     await waitFor(() => {
       expect(onSuccess).toHaveBeenCalledWith('123456', true, expect.objectContaining({
         nome: 'Mario Rossi',
-        email: 'mario@test.it',
+        telefono: '3331234567',
         posti: 'A1',
         codice: '123456',
-      }))
+      }), true)
     })
     expect(api.creaPrenotazione).toHaveBeenCalledWith(
       [1],
       'Mario Rossi',
       '',
-      'mario@test.it',
+      '3331234567',
       ''
     )
   })

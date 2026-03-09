@@ -52,7 +52,7 @@ def _serialize_posto(posto, session_id=None):
         if pren:
             out['prenotazione_nome'] = pren.nome
             out['prenotazione_nome_allieva'] = pren.nome_allieva or ''
-            out['prenotazione_email'] = pren.email
+            out['prenotazione_telefono'] = pren.telefono
     return out
 
 @api_bp.route('/spettacolo', methods=['GET'])
@@ -81,16 +81,34 @@ def get_posti():
     posti = Posto.query.order_by(Posto.fila, Posto.numero).all()
     return jsonify([_serialize_posto(p, session_id) for p in posti])
 
+def _normalizza_telefono(val):
+    """Restituisce solo le cifre del telefono (senza prefisso internazionale)."""
+    return ''.join(c for c in (val or '') if c.isdigit())
+
+
+def _valida_telefono(telefono):
+    """Telefono: solo cifre, 9-11 caratteri (senza prefisso)."""
+    t = _normalizza_telefono(telefono)
+    if not t:
+        return None, 'Inserisci il numero di telefono'
+    if len(t) < 9 or len(t) > 11:
+        return None, 'Il numero deve avere da 9 a 11 cifre (senza prefisso internazionale)'
+    return t, None
+
+
 @api_bp.route('/prenotazioni', methods=['POST'])
 def crea_prenotazione():
     data = request.get_json() or {}
     posto_ids = data.get('posto_ids', [])
     nome = (data.get('nome') or '').strip()
     nome_allieva = (data.get('nome_allieva') or '').strip()
-    email = (data.get('email') or '').strip()
+    telefono_raw = (data.get('telefono') or '').strip()
     session_id = (data.get('session_id') or request.headers.get('X-Session-Id') or '').strip()
-    if not nome or not email:
-        return jsonify({'error': 'Nome e email richiesti'}), 400
+    if not nome:
+        return jsonify({'error': 'Nome richiesto'}), 400
+    telefono, err = _valida_telefono(telefono_raw)
+    if err:
+        return jsonify({'error': err}), 400
     if not posto_ids:
         return jsonify({'error': 'Seleziona almeno un posto'}), 400
     try:
@@ -114,16 +132,15 @@ def crea_prenotazione():
             if blocco and (not session_id or blocco.session_id != session_id):
                 db.session.rollback()
                 return jsonify({'error': f'Posto {posto.fila}{posto.numero} non più disponibile (blocco scaduto o occupato). Ricarica e riprova.'}), 400
-        email_lower = email.lower()
         created = []
         for pid in posto_ids:
-            pren = Prenotazione(posto_id=pid, nome=nome, nome_allieva=nome_allieva or None, email=email_lower, stato='confermata')
+            pren = Prenotazione(posto_id=pid, nome=nome, nome_allieva=nome_allieva or None, telefono=telefono, stato='confermata')
             db.session.add(pren)
             created.append(pren)
         # Rilascia blocchi sui posti prenotati (qualsiasi session_id)
         Blocco.query.filter(Blocco.posto_id.in_(posto_ids)).delete(synchronize_session=False)
-        # Assegna o recupera codice prenotazione (6 cifre) per questa email
-        row = CodicePrenotazione.query.filter_by(email=email_lower).first()
+        # Assegna o recupera codice prenotazione (6 cifre) per questo telefono
+        row = CodicePrenotazione.query.filter_by(telefono=telefono).first()
         if row:
             codice = row.codice
             codice_nuovo = False
@@ -131,7 +148,7 @@ def crea_prenotazione():
             for _ in range(10):
                 codice = str(random.randint(100000, 999999))
                 if CodicePrenotazione.query.filter_by(codice=codice).first() is None:
-                    db.session.add(CodicePrenotazione(email=email_lower, codice=codice))
+                    db.session.add(CodicePrenotazione(telefono=telefono, codice=codice))
                     codice_nuovo = True
                     break
             else:
@@ -141,7 +158,7 @@ def crea_prenotazione():
         try:
             posti_etichette = [f"{Posto.query.get(pid).fila}{Posto.query.get(pid).numero}" for pid in posto_ids]
             from email_service import invio_email_conferma
-            invio_email_conferma(email_lower, nome, nome_allieva or '', posti_etichette, codice)
+            invio_email_conferma(telefono, nome, nome_allieva or '', posti_etichette, codice)
         except Exception:
             pass
         return jsonify({
@@ -161,18 +178,19 @@ def list_prenotazioni():
 
 @api_bp.route('/prenotazioni/recupera', methods=['POST'])
 def recupera_prenotazioni():
-    """Restituisce le prenotazioni confermate per email+codice (codice assegnato alla prima prenotazione)."""
+    """Restituisce le prenotazioni confermate per telefono+codice (codice assegnato alla prima prenotazione)."""
     data = request.get_json() or {}
-    email = (data.get('email') or '').strip().lower()
+    telefono_raw = (data.get('telefono') or '').strip()
     codice = (data.get('codice') or '').strip()
-    if not email:
-        return jsonify({'error': 'Email richiesta'}), 400
+    telefono, err = _valida_telefono(telefono_raw)
+    if err:
+        return jsonify({'error': err}), 400
     if not codice or len(codice) != 6 or not codice.isdigit():
         return jsonify({'error': 'Codice prenotazione non valido (6 cifre)'}), 400
-    row = CodicePrenotazione.query.filter_by(email=email).first()
+    row = CodicePrenotazione.query.filter_by(telefono=telefono).first()
     if not row or row.codice != codice:
-        return jsonify({'error': 'Nessuna prenotazione trovata per questa email e codice.'}), 404
-    pren_list = Prenotazione.query.filter_by(email=row.email, stato='confermata').order_by(Prenotazione.timestamp.desc()).all()
+        return jsonify({'error': 'Nessuna prenotazione trovata per questo telefono e codice.'}), 404
+    pren_list = Prenotazione.query.filter_by(telefono=row.telefono, stato='confermata').order_by(Prenotazione.timestamp.desc()).all()
     out = []
     for p in pren_list:
         posto = Posto.query.get(p.posto_id)
@@ -186,18 +204,19 @@ def recupera_prenotazioni():
 
 @api_bp.route('/prenotazioni/annulla', methods=['POST'])
 def annulla_prenotazioni():
-    """Annulla tutte le prenotazioni per email+codice; invia email a utente e admin."""
+    """Annulla tutte le prenotazioni per telefono+codice; notifica admin."""
     data = request.get_json() or {}
-    email = (data.get('email') or '').strip().lower()
+    telefono_raw = (data.get('telefono') or '').strip()
     codice = (data.get('codice') or '').strip()
-    if not email:
-        return jsonify({'error': 'Email richiesta'}), 400
+    telefono, err = _valida_telefono(telefono_raw)
+    if err:
+        return jsonify({'error': err}), 400
     if not codice or len(codice) != 6 or not codice.isdigit():
         return jsonify({'error': 'Codice prenotazione non valido (6 cifre)'}), 400
-    row = CodicePrenotazione.query.filter_by(email=email).first()
+    row = CodicePrenotazione.query.filter_by(telefono=telefono).first()
     if not row or row.codice != codice:
-        return jsonify({'error': 'Nessuna prenotazione trovata per questa email e codice.'}), 404
-    pren_list = Prenotazione.query.filter_by(email=row.email, stato='confermata').all()
+        return jsonify({'error': 'Nessuna prenotazione trovata per questo telefono e codice.'}), 404
+    pren_list = Prenotazione.query.filter_by(telefono=row.telefono, stato='confermata').all()
     if not pren_list:
         return jsonify({'ok': True, 'message': 'Nessuna prenotazione attiva'})
     nome = pren_list[0].nome
@@ -210,7 +229,7 @@ def annulla_prenotazioni():
     db.session.commit()
     try:
         from email_service import invio_email_annullamento
-        invio_email_annullamento(email, nome, posti_etichette)
+        invio_email_annullamento(telefono, nome, posti_etichette)
     except Exception:
         pass
     return jsonify({'ok': True})
@@ -218,20 +237,21 @@ def annulla_prenotazioni():
 
 @api_bp.route('/prenotazioni/aggiorna', methods=['POST'])
 def aggiorna_prenotazioni():
-    """Aggiorna le prenotazioni per email+codice: sostituisce i posti con la nuova lista; invia email conferma."""
+    """Aggiorna le prenotazioni per telefono+codice: sostituisce i posti con la nuova lista; notifica admin."""
     data = request.get_json() or {}
-    email = (data.get('email') or '').strip().lower()
+    telefono_raw = (data.get('telefono') or '').strip()
     codice = (data.get('codice') or '').strip()
     posto_ids = data.get('posto_ids', [])
     nome = (data.get('nome') or '').strip() or None
     nome_allieva = (data.get('nome_allieva') or '').strip() or None
-    if not email:
-        return jsonify({'error': 'Email richiesta'}), 400
+    telefono, err = _valida_telefono(telefono_raw)
+    if err:
+        return jsonify({'error': err}), 400
     if not codice or len(codice) != 6 or not codice.isdigit():
         return jsonify({'error': 'Codice prenotazione non valido (6 cifre)'}), 400
-    row = CodicePrenotazione.query.filter_by(email=email).first()
+    row = CodicePrenotazione.query.filter_by(telefono=telefono).first()
     if not row or row.codice != codice:
-        return jsonify({'error': 'Nessuna prenotazione trovata per questa email e codice.'}), 404
+        return jsonify({'error': 'Nessuna prenotazione trovata per questo telefono e codice.'}), 404
     if not posto_ids:
         return jsonify({'error': 'Seleziona almeno un posto'}), 400
     try:
@@ -239,7 +259,7 @@ def aggiorna_prenotazioni():
         bind = db.session.get_bind()
         if bind.dialect.name == 'sqlite':
             db.session.execute(text('BEGIN IMMEDIATE'))
-        old_list = Prenotazione.query.filter_by(email=row.email, stato='confermata').all()
+        old_list = Prenotazione.query.filter_by(telefono=row.telefono, stato='confermata').all()
         nome_final = nome if nome else (old_list[0].nome if old_list else '')
         nome_allieva_final = nome_allieva if nome_allieva is not None else (old_list[0].nome_allieva if old_list else None)
         for p in old_list:
@@ -255,13 +275,13 @@ def aggiorna_prenotazioni():
             if _posto_occupato(posto):
                 db.session.rollback()
                 return jsonify({'error': f'Posto {posto.fila}{posto.numero} già occupato'}), 400
-            pren = Prenotazione(posto_id=pid, nome=nome_final, nome_allieva=nome_allieva_final, email=row.email, stato='confermata')
+            pren = Prenotazione(posto_id=pid, nome=nome_final, nome_allieva=nome_allieva_final, telefono=row.telefono, stato='confermata')
             db.session.add(pren)
         db.session.commit()
         posti_etichette = [f"{Posto.query.get(pid).fila}{Posto.query.get(pid).numero}" for pid in posto_ids]
         try:
             from email_service import invio_email_conferma
-            invio_email_conferma(row.email, nome_final, nome_allieva_final or '', posti_etichette, row.codice)
+            invio_email_conferma(row.telefono, nome_final, nome_allieva_final or '', posti_etichette, row.codice)
         except Exception:
             pass
         return jsonify({'ok': True, 'codice': row.codice})
@@ -339,19 +359,19 @@ def admin_set_posto(posto_id):
 def admin_export():
     if not _admin_auth():
         return jsonify({'error': 'Non autorizzato'}), 401
-    pren_list = Prenotazione.query.filter_by(stato='confermata').order_by(Prenotazione.nome, Prenotazione.email).all()
+    pren_list = Prenotazione.query.filter_by(stato='confermata').order_by(Prenotazione.nome, Prenotazione.telefono).all()
     by_seat = []
-    person_map = {}  # (nome, email) -> { count, posti: [], timestamp: datetime }
+    person_map = {}  # (nome, telefono) -> { count, posti: [], timestamp: datetime }
     for p in pren_list:
         posto = Posto.query.get(p.posto_id)
         if not posto:
             continue
         fila, numero = posto.fila, posto.numero
         label = f'{fila}{numero}'
-        by_seat.append({'fila': fila, 'numero': numero, 'posto': label, 'nome': p.nome, 'nome_allieva': p.nome_allieva or '', 'email': p.email})
-        key = (p.nome, p.email)
+        by_seat.append({'fila': fila, 'numero': numero, 'posto': label, 'nome': p.nome, 'nome_allieva': p.nome_allieva or '', 'telefono': p.telefono})
+        key = (p.nome, p.telefono)
         if key not in person_map:
-            person_map[key] = {'nome': p.nome, 'nome_allieva': p.nome_allieva or '', 'email': p.email, 'count': 0, 'posti': [], 'timestamp': p.timestamp}
+            person_map[key] = {'nome': p.nome, 'nome_allieva': p.nome_allieva or '', 'telefono': p.telefono, 'count': 0, 'posti': [], 'timestamp': p.timestamp}
         else:
             if p.timestamp and (person_map[key]['timestamp'] is None or p.timestamp < person_map[key]['timestamp']):
                 person_map[key]['timestamp'] = p.timestamp
@@ -359,11 +379,11 @@ def admin_export():
         person_map[key]['posti'].append(label)
     by_person = []
     for v in person_map.values():
-        rec = {'nome': v['nome'], 'nome_allieva': v['nome_allieva'], 'email': v['email'], 'count': v['count'], 'posti': v['posti']}
+        rec = {'nome': v['nome'], 'nome_allieva': v['nome_allieva'], 'telefono': v['telefono'], 'count': v['count'], 'posti': v['posti']}
         if v.get('timestamp'):
             rec['timestamp'] = v['timestamp'].isoformat()
         by_person.append(rec)
-    by_person.sort(key=lambda x: (-x['count'], x['nome'], x['email']))
+    by_person.sort(key=lambda x: (-x['count'], x['nome'], x['telefono']))
     by_seat.sort(key=lambda x: (x['fila'], x['numero']))
     return jsonify({'bySeat': by_seat, 'byPerson': by_person})
 

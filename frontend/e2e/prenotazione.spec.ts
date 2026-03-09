@@ -7,7 +7,7 @@ test.describe('Flusso prenotazione', () => {
     await expect(page.getByText(/Prenotazione posti|teatro|spettacolo/i)).toBeVisible({ timeout: 5000 })
   })
 
-  test('selezione posto, compilazione form e conferma mostrano successo e codice', async ({
+  test('selezione posto, compilazione form e conferma portano alla pagina di ringraziamento', async ({
     page,
   }) => {
     await page.goto('/')
@@ -23,7 +23,7 @@ test.describe('Flusso prenotazione', () => {
 
     await page.getByLabel('Nome', { exact: true }).fill('Mario Rossi')
     await page.getByLabel('Nome allieva').fill('Giulia')
-    await page.locator('#email').fill('mario.e2e@test.it')
+    await page.locator('#telefono').fill('3331234567')
 
     await page.getByRole('button', { name: /^Conferma$/i }).click()
 
@@ -35,7 +35,7 @@ test.describe('Flusso prenotazione', () => {
 
     await page.getByRole('button', { name: /Procedi/i }).click()
 
-    await expect(page.getByText(/Prenotazione confermata/i)).toBeVisible({ timeout: 10000 })
-    await expect(page.getByRole('button', { name: /Copia codice/i })).toBeVisible({ timeout: 5000 })
+    await expect(page.getByText(/Grazie per aver prenotato/i)).toBeVisible({ timeout: 10000 })
+    await expect(page.getByText(/Codice prenotazione/i)).toBeVisible({ timeout: 5000 })
   })
 })

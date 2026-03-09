@@ -22,18 +22,19 @@ def test_get_posti_con_session_id(client):
     assert isinstance(data, list)
 
 
-def test_crea_prenotazione_nome_email_richiesti(client):
-    """POST /api/prenotazioni senza nome/email -> 400."""
+def test_crea_prenotazione_nome_telefono_richiesti(client):
+    """POST /api/prenotazioni senza nome/telefono -> 400."""
     r = client.post('/api/prenotazioni', json={}, headers={'Content-Type': 'application/json'})
     assert r.status_code == 400
-    assert 'Nome e email richiesti' in r.get_json().get('error', '')
+    err = r.get_json().get('error', '')
+    assert 'Nome' in err or 'telefono' in err.lower()
 
 
 def test_crea_prenotazione_posto_richiesto(client):
     """POST /api/prenotazioni senza posti -> 400."""
     r = client.post(
         '/api/prenotazioni',
-        json={'nome': 'Mario', 'email': 'mario@test.it', 'posto_ids': []},
+        json={'nome': 'Mario', 'telefono': '3331234567', 'posto_ids': []},
         headers={'Content-Type': 'application/json'},
     )
     assert r.status_code == 400
@@ -51,7 +52,7 @@ def test_crea_prenotazione_success(client):
         '/api/prenotazioni',
         json={
             'nome': 'Mario Rossi',
-            'email': 'mario@test.it',
+            'telefono': '3331234567',
             'posto_ids': [posto_id],
         },
         headers={'Content-Type': 'application/json'},
@@ -61,7 +62,7 @@ def test_crea_prenotazione_success(client):
     assert 'prenotazioni' in data
     assert len(data['prenotazioni']) == 1
     assert data['prenotazioni'][0]['nome'] == 'Mario Rossi'
-    assert data['prenotazioni'][0]['email'] == 'mario@test.it'
+    assert data['prenotazioni'][0]['telefono'] == '3331234567'
     assert data['prenotazioni'][0]['posto_id'] == posto_id
 
 
@@ -73,12 +74,12 @@ def test_crea_prenotazione_stesso_posto_occupato(client):
 
     client.post(
         '/api/prenotazioni',
-        json={'nome': 'A', 'email': 'a@b.it', 'posto_ids': [posto_id]},
+        json={'nome': 'A', 'telefono': '3331112233', 'posto_ids': [posto_id]},
         headers={'Content-Type': 'application/json'},
     )
     r = client.post(
         '/api/prenotazioni',
-        json={'nome': 'B', 'email': 'b@b.it', 'posto_ids': [posto_id]},
+        json={'nome': 'B', 'telefono': '3404445566', 'posto_ids': [posto_id]},
         headers={'Content-Type': 'application/json'},
     )
     assert r.status_code == 400
@@ -100,7 +101,7 @@ def test_cancella_prenotazione(client):
     posto_id = next(p['id'] for p in get_r.get_json() if p['stato'] == 'disponibile')
     crea = client.post(
         '/api/prenotazioni',
-        json={'nome': 'X', 'email': 'x@x.it', 'posto_ids': [posto_id]},
+        json={'nome': 'X', 'telefono': '3287778899', 'posto_ids': [posto_id]},
         headers={'Content-Type': 'application/json'},
     )
     pren_id = crea.get_json()['prenotazioni'][0]['id']
@@ -192,20 +193,20 @@ def test_admin_file_put_riservata(client):
 
 
 def test_annulla_prenotazioni(client):
-    """POST /api/prenotazioni/annulla con email+codice annulla tutte le prenotazioni."""
+    """POST /api/prenotazioni/annulla con telefono+codice annulla tutte le prenotazioni."""
     get_r = client.get('/api/posti')
     posti = get_r.get_json()
     posto_id = next(p['id'] for p in posti if p['stato'] == 'disponibile')
     crea = client.post(
         '/api/prenotazioni',
-        json={'nome': 'Anna', 'email': 'anna@test.it', 'posto_ids': [posto_id]},
+        json={'nome': 'Anna', 'telefono': '3339998877', 'posto_ids': [posto_id]},
         headers={'Content-Type': 'application/json'},
     )
     assert crea.status_code == 200
     codice = crea.get_json()['codice']
     r = client.post(
         '/api/prenotazioni/annulla',
-        json={'email': 'anna@test.it', 'codice': codice},
+        json={'telefono': '3339998877', 'codice': codice},
         headers={'Content-Type': 'application/json'},
     )
     assert r.status_code == 200
@@ -213,14 +214,14 @@ def test_annulla_prenotazioni(client):
 
 
 def test_aggiorna_prenotazioni(client):
-    """POST /api/prenotazioni/aggiorna con email+codice sostituisce i posti."""
+    """POST /api/prenotazioni/aggiorna con telefono+codice sostituisce i posti."""
     get_r = client.get('/api/posti')
     posti = get_r.get_json()
     ids = [p['id'] for p in posti if p['stato'] == 'disponibile'][:2]
     assert len(ids) >= 1
     crea = client.post(
         '/api/prenotazioni',
-        json={'nome': 'Luigi', 'email': 'luigi@test.it', 'posto_ids': [ids[0]]},
+        json={'nome': 'Luigi', 'telefono': '3471234567', 'posto_ids': [ids[0]]},
         headers={'Content-Type': 'application/json'},
     )
     assert crea.status_code == 200
@@ -229,7 +230,7 @@ def test_aggiorna_prenotazioni(client):
     r = client.post(
         '/api/prenotazioni/aggiorna',
         json={
-            'email': 'luigi@test.it',
+            'telefono': '3471234567',
             'codice': codice,
             'posto_ids': [nuovo_id],
             'nome': 'Luigi',

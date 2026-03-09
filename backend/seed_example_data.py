@@ -52,10 +52,10 @@ def run():
             return
 
         esempi = [
-            {'nome': 'Maria Rossi', 'nome_allieva': 'Giulia Rossi', 'email': 'maria.rossi@email.it', 'n_posti': 2},
-            {'nome': 'Luigi Bianchi', 'nome_allieva': '', 'email': 'luigi.bianchi@email.it', 'n_posti': 1},
-            {'nome': 'Anna Verdi', 'nome_allieva': 'Marco Verdi', 'email': 'anna.verdi@email.it', 'n_posti': 3},
-            {'nome': 'Paolo Neri', 'nome_allieva': '', 'email': 'paolo.neri@email.it', 'n_posti': 1},
+            {'nome': 'Maria Rossi', 'nome_allieva': 'Giulia Rossi', 'telefono': '3331234567', 'n_posti': 2},
+            {'nome': 'Luigi Bianchi', 'nome_allieva': '', 'telefono': '3409876543', 'n_posti': 1},
+            {'nome': 'Anna Verdi', 'nome_allieva': 'Marco Verdi', 'telefono': '3471112233', 'n_posti': 3},
+            {'nome': 'Paolo Neri', 'nome_allieva': '', 'telefono': '3284445566', 'n_posti': 1},
         ]
 
         idx = 0
@@ -69,16 +69,16 @@ def run():
                     posto_id=posto.id,
                     nome=e['nome'],
                     nome_allieva=e['nome_allieva'] or None,
-                    email=e['email'].lower(),
+                    telefono=e['telefono'],
                     stato='confermata',
                 )
                 db.session.add(pren)
-            # Codice prenotazione 6 cifre per questa email
-            if db.session.query(CodicePrenotazione).filter_by(email=e['email'].lower()).first() is None:
+            # Codice prenotazione 6 cifre per questo telefono
+            if db.session.query(CodicePrenotazione).filter_by(telefono=e['telefono']).first() is None:
                 for _ in range(20):
                     codice = str(random.randint(100000, 999999))
                     if db.session.query(CodicePrenotazione).filter_by(codice=codice).first() is None:
-                        db.session.add(CodicePrenotazione(email=e['email'].lower(), codice=codice))
+                        db.session.add(CodicePrenotazione(telefono=e['telefono'], codice=codice))
                         break
 
         db.session.commit()

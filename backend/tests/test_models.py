@@ -18,7 +18,7 @@ def test_prenotazione_to_dict():
             id=999,
             posto_id=1,
             nome='Test',
-            email='test@test.it',
+            telefono='3331234567',
             timestamp=datetime(2025, 1, 15, 12, 0, 0),
             stato='confermata',
         )
@@ -26,6 +26,6 @@ def test_prenotazione_to_dict():
         assert d['id'] == 999
         assert d['posto_id'] == 1
         assert d['nome'] == 'Test'
-        assert d['email'] == 'test@test.it'
+        assert d['telefono'] == '3331234567'
         assert '2025-01-15' in (d['timestamp'] or '')
         assert d['stato'] == 'confermata'

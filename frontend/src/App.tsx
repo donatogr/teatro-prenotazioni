@@ -144,7 +144,7 @@ function App() {
     }
   }, [selectedIds.length, hintVisto])
 
-  const handleBookingSuccess = useCallback((codice?: string, codiceNuovo?: boolean, summary?: BookingSummary) => {
+  const handleBookingSuccess = useCallback((codice?: string, codiceNuovo?: boolean, summary?: BookingSummary, goToThankYou?: boolean) => {
     setSelectedIds([])
     setPostSuccessDismissed(false)
     fetchPosti()
@@ -153,6 +153,12 @@ function App() {
     if (successTimeoutRef.current) {
       clearTimeout(successTimeoutRef.current)
       successTimeoutRef.current = null
+    }
+    if (goToThankYou && summary) {
+      setShowThankYou(true)
+      setSuccessMessage('')
+      setSuccessCodice(null)
+      return
     }
     if (codice) {
       setSuccessMessage(codiceNuovo ? 'Prenotazione confermata.' : 'Prenotazione confermata.')
@@ -222,13 +228,18 @@ function App() {
                   <dd>{bookingSummary.nomeAllieva}</dd>
                 </>
               )}
-              <dt>Email</dt>
-              <dd>{bookingSummary.email}</dd>
+              <dt>Telefono</dt>
+              <dd>{bookingSummary.telefono}</dd>
               <dt>Posti</dt>
               <dd>{bookingSummary.posti}</dd>
               <dt>Codice prenotazione</dt>
               <dd className={styles.thankYouCodice}>{bookingSummary.codice}</dd>
             </dl>
+          )}
+          {bookingSummary && (
+            <p className={styles.codeHint}>
+              Conserva il codice: ti servirà con il tuo numero di telefono per recuperare o modificare la prenotazione.
+            </p>
           )}
           <p className={styles.thankYouText}>
             Ora puoi chiudere questa finestra.
@@ -287,8 +298,8 @@ function App() {
           >
             {copiedCodice ? 'Copiato!' : 'Copia codice'}
           </button>
-          <p className={styles.codeHint}>Conservalo: ti servirà con la tua email per recuperare la prenotazione.</p>
-          <p className={styles.codeHint}>Per modificare in seguito usa email e questo codice nella sezione &quot;Recupera con email e codice&quot; sotto.</p>
+          <p className={styles.codeHint}>Conservalo: ti servirà con il tuo numero di telefono per recuperare la prenotazione.</p>
+          <p className={styles.codeHint}>Per modificare in seguito usa telefono e questo codice nella sezione &quot;Recupera con telefono e codice&quot; sotto.</p>
           <div className={styles.codeBoxActions}>
             <button
               type="button"

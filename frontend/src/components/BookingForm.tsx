@@ -3,12 +3,22 @@ import { creaPrenotazione, aggiornaPrenotazione, annullaPrenotazioneByCodice } f
 import type { Posto } from '../types'
 import styles from './BookingForm.module.css'
 
-const EMAIL_RE = /^[^\s@]+@[^\s@]+\.[^\s@]+$/
+/** Solo cifre, 9-11 caratteri (senza prefisso internazionale). */
+function normalizzaTelefono(val: string): string {
+  return (val || '').replace(/\D/g, '')
+}
+
+function validaTelefono(val: string): string | null {
+  const t = normalizzaTelefono(val)
+  if (!t) return 'Inserisci il numero di telefono'
+  if (t.length < 9 || t.length > 11) return 'Il numero deve avere da 9 a 11 cifre (senza prefisso)'
+  return null
+}
 
 export interface RecuperoData {
-  prenotazioni: { id: number; posto_id: number; nome: string; nome_allieva?: string; email: string }[]
+  prenotazioni: { id: number; posto_id: number; nome: string; nome_allieva?: string; telefono: string }[]
   nome: string
-  email: string
+  telefono: string
   nomeAllieva: string
   codice: string
 }
@@ -16,7 +26,7 @@ export interface RecuperoData {
 export interface BookingSummary {
   nome: string
   nomeAllieva?: string
-  email: string
+  telefono: string
   posti: string
   codice: string
 }
@@ -24,7 +34,7 @@ export interface BookingSummary {
 interface BookingFormProps {
   posti: Posto[]
   selectedIds: number[]
-  onSuccess: (codice?: string, codiceNuovo?: boolean, summary?: BookingSummary) => void
+  onSuccess: (codice?: string, codiceNuovo?: boolean, summary?: BookingSummary, goToThankYou?: boolean) => void
   onError: (msg: string) => void
   disabled?: boolean
   sessionId?: string
@@ -57,7 +67,7 @@ export function BookingForm({
   }, [posti, selectedIds])
   const [nome, setNome] = useState('')
   const [nomeAllieva, setNomeAllieva] = useState('')
-  const [email, setEmail] = useState('')
+  const [telefono, setTelefono] = useState('')
   const [loading, setLoading] = useState(false)
   const [showConfirmDialog, setShowConfirmDialog] = useState(false)
   const [showAnnullaConfirm, setShowAnnullaConfirm] = useState(false)
@@ -65,7 +75,7 @@ export function BookingForm({
   useEffect(() => {
     if (recuperoData) {
       setNome(recuperoData.nome)
-      setEmail(recuperoData.email)
+      setTelefono(recuperoData.telefono)
       setNomeAllieva(recuperoData.nomeAllieva || '')
     }
   }, [recuperoData])
@@ -73,17 +83,13 @@ export function BookingForm({
   const handleSubmit = (e: React.FormEvent) => {
     e.preventDefault()
     const n = nome.trim()
-    const eVal = email.trim()
+    const errTel = validaTelefono(telefono)
     if (!n) {
       onError('Inserisci il nome')
       return
     }
-    if (!eVal) {
-      onError('Inserisci l\'email')
-      return
-    }
-    if (!EMAIL_RE.test(eVal)) {
-      onError('Email non valida')
+    if (errTel) {
+      onError(errTel)
       return
     }
     if (selectedIds.length === 0) {
@@ -96,21 +102,22 @@ export function BookingForm({
 
   const handleProcedi = async () => {
     const n = nome.trim()
-    const eVal = email.trim()
+    const telNorm = normalizzaTelefono(telefono)
     setLoading(true)
     try {
-      const res = await creaPrenotazione(selectedIds, n, nomeAllieva.trim(), eVal, sessionId)
+      const res = await creaPrenotazione(selectedIds, n, nomeAllieva.trim(), telNorm, sessionId)
       setShowConfirmDialog(false)
       setNome('')
       setNomeAllieva('')
-      setEmail('')
-      onSuccess(res.codice, res.codice_nuovo, {
+      setTelefono('')
+      const summary: BookingSummary = {
         nome: n,
         nomeAllieva: nomeAllieva.trim() || undefined,
-        email: eVal,
+        telefono: telNorm,
         posti: selectedList,
         codice: res.codice,
-      })
+      }
+      onSuccess(res.codice, res.codice_nuovo, summary, true)
     } catch (err) {
       onError(err instanceof Error ? err.message : 'Errore prenotazione')
     } finally {
@@ -121,9 +128,9 @@ export function BookingForm({
   const handleConfermaModifiche = async () => {
     if (!recuperoData) return
     const n = nome.trim()
-    const eVal = email.trim()
-    if (!n || !eVal || !EMAIL_RE.test(eVal)) {
-      onError('Nome e email validi richiesti')
+    const errTel = validaTelefono(telefono)
+    if (!n || errTel) {
+      onError(errTel || 'Nome e telefono validi richiesti')
       return
     }
     if (selectedIds.length === 0) {
@@ -133,11 +140,11 @@ export function BookingForm({
     setLoading(true)
     onError('')
     try {
-      await aggiornaPrenotazione(recuperoData.email, recuperoData.codice, selectedIds, n, nomeAllieva.trim())
+      await aggiornaPrenotazione(recuperoData.telefono, recuperoData.codice, selectedIds, n, nomeAllieva.trim())
       onAggiornaSuccess?.(recuperoData.codice, {
         nome: n,
         nomeAllieva: nomeAllieva.trim() || undefined,
-        email: eVal,
+        telefono: normalizzaTelefono(telefono),
         posti: selectedList,
         codice: recuperoData.codice,
       })
@@ -153,7 +160,7 @@ export function BookingForm({
     setLoading(true)
     onError('')
     try {
-      await annullaPrenotazioneByCodice(recuperoData.email, recuperoData.codice)
+      await annullaPrenotazioneByCodice(recuperoData.telefono, recuperoData.codice)
       setShowAnnullaConfirm(false)
       onRecuperoCancel?.()
       fetchPosti?.()
@@ -193,21 +200,23 @@ export function BookingForm({
         />
       </div>
       <div className={styles.field}>
-        <label htmlFor="email">Email</label>
+        <label htmlFor="telefono">Telefono</label>
         <input
-          id="email"
-          type="email"
-          value={email}
-          onChange={(e) => setEmail(e.target.value)}
-          placeholder="email@esempio.it"
+          id="telefono"
+          type="tel"
+          inputMode="numeric"
+          value={telefono}
+          onChange={(e) => setTelefono(e.target.value.replace(/\D/g, ''))}
+          placeholder="333 1234567"
           disabled={disabled || !!recuperoData}
+          maxLength={11}
         />
       </div>
       <p className={styles.hint}>
         Posti selezionati: {selectedIds.length}
         {selectedList && ` – ${selectedList}`}
       </p>
-      {selectedIds.length > 0 && (nome.trim() || nomeAllieva.trim() || email.trim()) && (
+      {selectedIds.length > 0 && (nome.trim() || nomeAllieva.trim() || telefono.trim()) && (
         <p className={styles.riepilogo}>
           Stai prenotando: <strong>{selectedList}</strong>
           {nome.trim() && (
@@ -216,8 +225,8 @@ export function BookingForm({
           {nomeAllieva.trim() && (
             <> – allieva: <strong>{nomeAllieva.trim()}</strong></>
           )}
-          {email.trim() && (
-            <> ({email.trim()})</>
+          {telefono.trim() && (
+            <> ({telefono.trim()})</>
           )}
           .
         </p>
@@ -246,7 +255,7 @@ export function BookingForm({
               <div className={styles.dialog}>
                 <h3 id="annulla-dialog-title" className={styles.dialogTitle}>Annullare la prenotazione?</h3>
                 <p className={styles.dialogText}>
-                  Tutti i posti prenotati saranno liberati. Riceverai un&apos;email di conferma dell&apos;annullamento.
+                  Tutti i posti prenotati saranno liberati.
                 </p>
                 <div className={styles.dialogActions}>
                   <button
@@ -290,8 +299,8 @@ export function BookingForm({
               <dd>{nome.trim()}</dd>
               <dt>Allieva</dt>
               <dd>{nomeAllieva.trim() || '—'}</dd>
-              <dt>Email</dt>
-              <dd>{email.trim()}</dd>
+              <dt>Telefono</dt>
+              <dd>{telefono.trim()}</dd>
               <dt>Posti prenotati</dt>
               <dd>{selectedList || selectedIds.join(', ')}</dd>
             </dl>

@@ -65,7 +65,7 @@ export async function creaPrenotazione(
   postoIds: number[],
   nome: string,
   nomeAllieva: string,
-  email: string,
+  telefono: string,
   sessionId: string = ''
 ): Promise<{
   prenotazioni: import('../types').Prenotazione[];
@@ -75,7 +75,7 @@ export async function creaPrenotazione(
   const r = await fetch(`${API_BASE}/prenotazioni`, {
     method: 'POST',
     headers: { 'Content-Type': 'application/json', ...(sessionId ? sessionHeaders(sessionId) : {}) },
-    body: JSON.stringify({ posto_ids: postoIds, nome, nome_allieva: nomeAllieva, email, session_id: sessionId }),
+    body: JSON.stringify({ posto_ids: postoIds, nome, nome_allieva: nomeAllieva, telefono, session_id: sessionId }),
   });
   const data = await r.json().catch(() => ({}));
   if (!r.ok) throw new Error(data.error || 'Errore prenotazione');
@@ -83,13 +83,13 @@ export async function creaPrenotazione(
 }
 
 export async function recuperaPrenotazioni(
-  email: string,
+  telefono: string,
   codice: string
 ): Promise<{ prenotazioni: import('../types').PrenotazioneConPosto[] }> {
   const r = await fetch(`${API_BASE}/prenotazioni/recupera`, {
     method: 'POST',
     headers: { 'Content-Type': 'application/json' },
-    body: JSON.stringify({ email: email.trim().toLowerCase(), codice: codice.trim() }),
+    body: JSON.stringify({ telefono: telefono.trim(), codice: codice.trim() }),
   });
   const data = await r.json().catch(() => ({}));
   if (r.status === 404) throw new Error(data.error || 'Nessuna prenotazione trovata');
@@ -102,18 +102,18 @@ export async function cancellaPrenotazione(id: number): Promise<void> {
   if (!r.ok) throw new Error('Errore cancellazione');
 }
 
-export async function annullaPrenotazioneByCodice(email: string, codice: string): Promise<void> {
+export async function annullaPrenotazioneByCodice(telefono: string, codice: string): Promise<void> {
   const r = await fetch(`${API_BASE}/prenotazioni/annulla`, {
     method: 'POST',
     headers: { 'Content-Type': 'application/json' },
-    body: JSON.stringify({ email: email.trim().toLowerCase(), codice: codice.trim() }),
+    body: JSON.stringify({ telefono: telefono.trim(), codice: codice.trim() }),
   });
   const data = await r.json().catch(() => ({}));
   if (!r.ok) throw new Error(data.error || 'Errore annullamento');
 }
 
 export async function aggiornaPrenotazione(
-  email: string,
+  telefono: string,
   codice: string,
   postoIds: number[],
   nome: string,
@@ -123,7 +123,7 @@ export async function aggiornaPrenotazione(
     method: 'POST',
     headers: { 'Content-Type': 'application/json' },
     body: JSON.stringify({
-      email: email.trim().toLowerCase(),
+      telefono: telefono.trim(),
       codice: codice.trim(),
       posto_ids: postoIds,
       nome: nome.trim(),

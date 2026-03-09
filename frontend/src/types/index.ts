@@ -16,7 +16,7 @@ export interface Posto {
   /** Presente quando stato === 'occupato' (per colore per persona) */
   prenotazione_nome?: string;
   prenotazione_nome_allieva?: string;
-  prenotazione_email?: string;
+  prenotazione_telefono?: string;
 }
 
 export interface ExportBySeat {
@@ -25,13 +25,13 @@ export interface ExportBySeat {
   posto: string;
   nome: string;
   nome_allieva?: string;
-  email: string;
+  telefono: string;
 }
 
 export interface ExportByPerson {
   nome: string;
   nome_allieva?: string;
-  email: string;
+  telefono: string;
   count: number;
   posti: string[];
   /** Data/ora prima prenotazione (ISO string), se disponibile */
@@ -43,7 +43,7 @@ export interface Prenotazione {
   posto_id: number;
   nome: string;
   nome_allieva?: string;
-  email: string;
+  telefono: string;
   timestamp: string | null;
   stato: string;
 }
