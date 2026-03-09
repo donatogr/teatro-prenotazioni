@@ -42,6 +42,9 @@ function App() {
     }
   })
   const [recuperoData, setRecuperoData] = useState<RecuperoData | null>(null)
+  const [postSuccessDismissed, setPostSuccessDismissed] = useState(false)
+  const successTimeoutRef = useRef<ReturnType<typeof setTimeout> | null>(null)
+  const mainRef = useRef<HTMLElement | null>(null)
 
   const fetchSpettacolo = useCallback(() => {
     getSpettacolo().then(setSpettacolo)
@@ -141,14 +144,22 @@ function App() {
 
   const handleBookingSuccess = useCallback((codice?: string, codiceNuovo?: boolean) => {
     setSelectedIds([])
+    setPostSuccessDismissed(false)
     fetchPosti()
     setCopiedCodice(false)
+    if (successTimeoutRef.current) {
+      clearTimeout(successTimeoutRef.current)
+      successTimeoutRef.current = null
+    }
     if (codice) {
       setSuccessMessage(codiceNuovo ? 'Prenotazione confermata.' : 'Prenotazione confermata.')
       setSuccessCodice(codice)
-      setTimeout(() => {
+      successTimeoutRef.current = setTimeout(() => {
+        successTimeoutRef.current = null
         setSuccessMessage('')
         setSuccessCodice(null)
+        setPostSuccessDismissed(true)
+        setTimeout(() => setPostSuccessDismissed(false), 9000)
       }, 15000)
     } else {
       setSuccessMessage('Prenotazione confermata.')
@@ -156,6 +167,22 @@ function App() {
       setTimeout(() => setSuccessMessage(''), 5000)
     }
   }, [fetchPosti])
+
+  const dismissSuccessBox = useCallback((showClosingMessage: boolean, scrollToMap?: boolean) => {
+    if (successTimeoutRef.current) {
+      clearTimeout(successTimeoutRef.current)
+      successTimeoutRef.current = null
+    }
+    setSuccessMessage('')
+    setSuccessCodice(null)
+    if (showClosingMessage) {
+      setPostSuccessDismissed(true)
+      setTimeout(() => setPostSuccessDismissed(false), 9000)
+    }
+    if (scrollToMap && mainRef.current) {
+      mainRef.current.scrollIntoView({ behavior: 'smooth', block: 'start' })
+    }
+  }, [])
 
   const handleCopyCodice = useCallback((codice: string) => {
     navigator.clipboard.writeText(codice).then(() => {
@@ -216,14 +243,37 @@ function App() {
             {copiedCodice ? 'Copiato!' : 'Copia codice'}
           </button>
           <p className={styles.codeHint}>Conservalo: ti servirà con la tua email per recuperare la prenotazione.</p>
+          <p className={styles.codeHint}>Per modificare in seguito usa email e questo codice nella sezione &quot;Recupera con email e codice&quot; sotto.</p>
+          <div className={styles.codeBoxActions}>
+            <button
+              type="button"
+              className={styles.codeBoxBtnPrimary}
+              onClick={() => dismissSuccessBox(true, true)}
+            >
+              Nuova prenotazione
+            </button>
+            <button
+              type="button"
+              className={styles.codeBoxBtnSecondary}
+              onClick={() => dismissSuccessBox(true)}
+            >
+              Ho finito
+            </button>
+          </div>
         </div>
       )}
 
-      <main className={styles.main}>
+      <main className={styles.main} ref={mainRef}>
         <div className={styles.mapColumn}>
-          <p className={styles.guidaSelezione}>
-            Clicca sui posti verdi per selezionarli, poi compila il form e conferma.
-          </p>
+          {postSuccessDismissed ? (
+            <p className={styles.guidaChiusura} role="status">
+              Prenotazione completata. Puoi chiudere la pagina o selezionare nuovi posti per un&apos;altra prenotazione.
+            </p>
+          ) : (
+            <p className={styles.guidaSelezione}>
+              Clicca sui posti verdi per selezionarli, poi compila il form e conferma.
+            </p>
+          )}
           {refreshingMessage && posti.length > 0 && (
             <p className={styles.refreshingMsg}>Aggiornamento disponibilità…</p>
           )}
