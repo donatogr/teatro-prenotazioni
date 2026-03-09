@@ -21,9 +21,9 @@ test.describe('Flusso prenotazione', () => {
       timeout: 5000,
     })
 
-    await page.getByLabel('Nome').fill('Mario Rossi')
+    await page.getByLabel('Nome', { exact: true }).fill('Mario Rossi')
     await page.getByLabel('Nome allieva').fill('Giulia')
-    await page.getByLabel('Email').fill('mario.e2e@test.it')
+    await page.locator('#email').fill('mario.e2e@test.it')
 
     await page.getByRole('button', { name: /^Conferma$/i }).click()
 

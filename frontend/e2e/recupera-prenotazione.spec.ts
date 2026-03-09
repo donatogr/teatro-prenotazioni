@@ -12,8 +12,8 @@ test.describe('Recupera prenotazione', () => {
     await postoDisponibile.click()
 
     const email = 'recupero.e2e@test.it'
-    await page.getByLabel('Nome').fill('Utente Recupero')
-    await page.getByLabel('Email').fill(email)
+    await page.locator('#nome').fill('Utente Recupero')
+    await page.locator('#email').fill(email)
     await page.getByRole('button', { name: /^Conferma$/i }).click()
     await expect(page.getByRole('dialog').getByText(/Riepilogo prenotazione/i)).toBeVisible({
       timeout: 5000,

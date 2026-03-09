@@ -8,7 +8,7 @@ test.describe('Validazione form', () => {
     const postoDisponibile = page.getByRole('button', { name: /Posto .*, disponibile/ }).first()
     await postoDisponibile.click()
 
-    await page.getByLabel('Email').fill('test@test.it')
+    await page.locator('#email').fill('test@test.it')
     await page.getByRole('button', { name: /^Conferma$/i }).click()
 
     await expect(page.getByText(/Inserisci il nome/i)).toBeVisible({ timeout: 5000 })
@@ -21,7 +21,7 @@ test.describe('Validazione form', () => {
     const postoDisponibile = page.getByRole('button', { name: /Posto .*, disponibile/ }).first()
     await postoDisponibile.click()
 
-    await page.getByLabel('Nome').fill('Mario Rossi')
+    await page.locator('#nome').fill('Mario Rossi')
     await page.getByRole('button', { name: /^Conferma$/i }).click()
 
     await expect(page.getByText(/Inserisci l'email/i)).toBeVisible({ timeout: 5000 })
@@ -34,8 +34,8 @@ test.describe('Validazione form', () => {
     const postoDisponibile = page.getByRole('button', { name: /Posto .*, disponibile/ }).first()
     await postoDisponibile.click()
 
-    await page.getByLabel('Nome').fill('Mario Rossi')
-    await page.getByLabel('Email').fill('non-email')
+    await page.locator('#nome').fill('Mario Rossi')
+    await page.locator('#email').fill('non-email')
     await page.getByRole('button', { name: /^Conferma$/i }).click()
 
     await expect(page.getByText(/Email non valida/i)).toBeVisible({ timeout: 5000 })
