@@ -13,16 +13,24 @@ export interface RecuperoData {
   codice: string
 }
 
+export interface BookingSummary {
+  nome: string
+  nomeAllieva?: string
+  email: string
+  posti: string
+  codice: string
+}
+
 interface BookingFormProps {
   posti: Posto[]
   selectedIds: number[]
-  onSuccess: (codice?: string, codiceNuovo?: boolean) => void
+  onSuccess: (codice?: string, codiceNuovo?: boolean, summary?: BookingSummary) => void
   onError: (msg: string) => void
   disabled?: boolean
   sessionId?: string
   recuperoData?: RecuperoData | null
   onRecuperoCancel?: () => void
-  onAggiornaSuccess?: (codice: string) => void
+  onAggiornaSuccess?: (codice: string, summary?: BookingSummary) => void
   fetchPosti?: () => void
 }
 
@@ -96,7 +104,13 @@ export function BookingForm({
       setNome('')
       setNomeAllieva('')
       setEmail('')
-      onSuccess(res.codice, res.codice_nuovo)
+      onSuccess(res.codice, res.codice_nuovo, {
+        nome: n,
+        nomeAllieva: nomeAllieva.trim() || undefined,
+        email: eVal,
+        posti: selectedList,
+        codice: res.codice,
+      })
     } catch (err) {
       onError(err instanceof Error ? err.message : 'Errore prenotazione')
     } finally {
@@ -120,7 +134,13 @@ export function BookingForm({
     onError('')
     try {
       await aggiornaPrenotazione(recuperoData.email, recuperoData.codice, selectedIds, n, nomeAllieva.trim())
-      onAggiornaSuccess?.(recuperoData.codice)
+      onAggiornaSuccess?.(recuperoData.codice, {
+        nome: n,
+        nomeAllieva: nomeAllieva.trim() || undefined,
+        email: eVal,
+        posti: selectedList,
+        codice: recuperoData.codice,
+      })
     } catch (err) {
       onError(err instanceof Error ? err.message : 'Errore aggiornamento')
     } finally {

@@ -7,7 +7,7 @@ Descrizione dei flussi utente dell’applicazione.
 ## 1. Utente pubblico – Nuova prenotazione
 
 1. **Ingresso**  
-   Apre l’app (es. http://localhost:5173). Vede l’header (nome teatro, nome spettacolo, data/ora se configurati) e la piantina dei posti.
+   Apre l’app (es. http://localhost:5173). Vede l’header (nome teatro, nome spettacolo, data/ora se configurati) e la piantina dei posti. Sopra la piantina è mostrata la guida «Clicca sui posti verdi per selezionarli, poi compila il form e conferma»; la prima volta può apparire un banner hint «Clicca su un posto per selezionarlo» (chiudibile con OK). Con almeno un posto selezionato compare il messaggio che i posti sono riservati per 5 minuti.
 
 2. **Esplorazione**  
    La piantina si aggiorna ogni 4 secondi. I posti hanno stati visivi: **disponibile** (verde), **occupato**, **non disponibile** (riservato staff), **bloccato** (in prenotazione da altri, arancione), **bloccato_da_me** (selezionati da lui).
@@ -22,7 +22,8 @@ Descrizione dei flussi utente dell’applicazione.
    Cliccando “Conferma” viene mostrata una dialog con i dettagli della prenotazione: nome e cognome, allieva, email, posti prenotati. La dialog ha due tasti: **“Indietro”** (chiude la dialog senza procedere) e **“Procedi”**. Premendo “Indietro” la dialog si chiude; premendo “Procedi” si procede con la prenotazione.
 
 6. **Conferma effettiva**  
-   Dopo “Procedi” il backend crea la prenotazione, rilascia i blocchi e restituisce un **codice a 6 cifre**. In pagina vede “Prenotazione confermata”, il codice e il pulsante “Copia codice”.  
+   Dopo “Procedi” il backend crea la prenotazione, rilascia i blocchi e restituisce un **codice a 6 cifre**. In pagina vede “Prenotazione confermata”, il codice, il pulsante “Copia codice” e le frasi su conservazione del codice e su “Recupera con email e codice” per modifiche successive. Due azioni disponibili: **“Nuova prenotazione”** (chiude il box, torna alla piantina con un messaggio di chiusura temporaneo) e **“Ho finito”** (sostituisce la pagina con la schermata di ringraziamento). Se l’utente non clicca nulla, il box si chiude da solo dopo 15 secondi e viene mostrato per alcuni secondi un messaggio di chiusura.  
+   **Schermata di ringraziamento** (dopo “Ho finito”): testo di ringraziamento e invito a contattare la scuola per il pagamento; **riepilogo della prenotazione** (nome, nome allieva se presente, email, posti, codice); “Ora puoi chiudere questa finestra”; pulsante **“Stampa riepilogo”** per stampare il riepilogo.  
    **Email di conferma:** all’utente e all’amministratore viene inviata un’email con i dettagli della prenotazione: dettagli dello spettacolo, posti prenotati, codice della prenotazione e istruzioni per modificare la prenotazione.
 
 **Possibili intoppi:** posti non più disponibili durante il flusso (messaggio di errore e invito ad aggiornare), validazione email/nome obbligatori.

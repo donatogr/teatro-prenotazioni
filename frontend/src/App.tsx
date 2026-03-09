@@ -2,7 +2,7 @@ import { useState, useEffect, useCallback, useRef } from 'react'
 import type { Posto } from './types'
 import { getPosti, getSpettacolo, bloccaPosti, rinnovaBlocchi, rilascioBlocchi } from './services/api'
 import { TeatroMap } from './components/TeatroMap'
-import { BookingForm, type RecuperoData } from './components/BookingForm'
+import { BookingForm, type RecuperoData, type BookingSummary } from './components/BookingForm'
 import { RecuperaPrenotazione } from './components/RecuperaPrenotazione'
 import { AdminPanel } from './components/AdminPanel'
 import styles from './App.module.css'
@@ -44,6 +44,7 @@ function App() {
   const [recuperoData, setRecuperoData] = useState<RecuperoData | null>(null)
   const [postSuccessDismissed, setPostSuccessDismissed] = useState(false)
   const [showThankYou, setShowThankYou] = useState(false)
+  const [bookingSummary, setBookingSummary] = useState<BookingSummary | null>(null)
   const successTimeoutRef = useRef<ReturnType<typeof setTimeout> | null>(null)
   const mainRef = useRef<HTMLElement | null>(null)
 
@@ -143,11 +144,12 @@ function App() {
     }
   }, [selectedIds.length, hintVisto])
 
-  const handleBookingSuccess = useCallback((codice?: string, codiceNuovo?: boolean) => {
+  const handleBookingSuccess = useCallback((codice?: string, codiceNuovo?: boolean, summary?: BookingSummary) => {
     setSelectedIds([])
     setPostSuccessDismissed(false)
     fetchPosti()
     setCopiedCodice(false)
+    if (summary) setBookingSummary(summary)
     if (successTimeoutRef.current) {
       clearTimeout(successTimeoutRef.current)
       successTimeoutRef.current = null
@@ -210,9 +212,36 @@ function App() {
           <p className={styles.thankYouText}>
             Grazie per aver prenotato. Prendi contatti con la scuola per procedere con il pagamento.
           </p>
+          {bookingSummary && (
+            <dl className={styles.thankYouSummary}>
+              <dt>Nome</dt>
+              <dd>{bookingSummary.nome}</dd>
+              {bookingSummary.nomeAllieva && (
+                <>
+                  <dt>Nome allieva</dt>
+                  <dd>{bookingSummary.nomeAllieva}</dd>
+                </>
+              )}
+              <dt>Email</dt>
+              <dd>{bookingSummary.email}</dd>
+              <dt>Posti</dt>
+              <dd>{bookingSummary.posti}</dd>
+              <dt>Codice prenotazione</dt>
+              <dd className={styles.thankYouCodice}>{bookingSummary.codice}</dd>
+            </dl>
+          )}
           <p className={styles.thankYouText}>
             Ora puoi chiudere questa finestra.
           </p>
+          {bookingSummary && (
+            <button
+              type="button"
+              className={styles.thankYouPrintBtn}
+              onClick={() => window.print()}
+            >
+              Stampa riepilogo
+            </button>
+          )}
         </div>
       </div>
     )
@@ -337,9 +366,9 @@ function App() {
               setSelectedIds([])
               fetchPosti()
             }}
-            onAggiornaSuccess={(codice) => {
+            onAggiornaSuccess={(codice, summary) => {
               setRecuperoData(null)
-              handleBookingSuccess(codice, false)
+              handleBookingSuccess(codice, false, summary)
               setSelectedIds([])
               fetchPosti()
             }}

@@ -93,7 +93,12 @@ describe('BookingForm', () => {
     await user.click(screen.getByRole('button', { name: /procedi/i }))
 
     await waitFor(() => {
-      expect(onSuccess).toHaveBeenCalledWith('123456', true)
+      expect(onSuccess).toHaveBeenCalledWith('123456', true, expect.objectContaining({
+        nome: 'Mario Rossi',
+        email: 'mario@test.it',
+        posti: 'A1',
+        codice: '123456',
+      }))
     })
     expect(api.creaPrenotazione).toHaveBeenCalledWith(
       [1],

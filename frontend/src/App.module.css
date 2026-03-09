@@ -200,6 +200,79 @@
   color: rgba(255, 255, 255, 0.95);
 }
 
+.thankYouSummary {
+  margin: 1.5rem 0;
+  padding: 1.25rem;
+  background: rgba(255, 255, 255, 0.08);
+  border-radius: 10px;
+  text-align: left;
+  display: grid;
+  grid-template-columns: auto 1fr;
+  gap: 0.35rem 1.5rem;
+}
+
+.thankYouSummary dt {
+  margin: 0;
+  font-weight: 600;
+  color: rgba(255, 255, 255, 0.85);
+}
+
+.thankYouSummary dd {
+  margin: 0;
+  color: rgba(255, 255, 255, 0.95);
+}
+
+.thankYouCodice {
+  font-family: ui-monospace, monospace;
+  font-size: 1.15rem;
+  letter-spacing: 0.15em;
+  font-weight: 600;
+}
+
+.thankYouPrintBtn {
+  margin-top: 1rem;
+  padding: 0.6rem 1.25rem;
+  border-radius: 8px;
+  border: 1px solid rgba(255, 255, 255, 0.5);
+  background: rgba(255, 255, 255, 0.15);
+  color: #fff;
+  font-size: 1rem;
+  font-weight: 600;
+  cursor: pointer;
+  align-self: center;
+}
+
+.thankYouPrintBtn:hover {
+  background: rgba(255, 255, 255, 0.25);
+}
+
+.thankYouPrintBtn:focus-visible {
+  outline: 2px solid rgba(234, 179, 8, 0.9);
+  outline-offset: 2px;
+}
+
+@media print {
+  .thankYouPrintBtn {
+    display: none;
+  }
+  .thankYouScreen {
+    color: #111;
+  }
+  .thankYouText {
+    color: #111;
+  }
+  .thankYouSummary {
+    background: #f5f5f5;
+    border: 1px solid #ccc;
+  }
+  .thankYouSummary dt {
+    color: #333;
+  }
+  .thankYouSummary dd {
+    color: #111;
+  }
+}
+
 .messageError {
   padding: 0.75rem 1rem;
   background: rgba(239, 68, 68, 0.2);
