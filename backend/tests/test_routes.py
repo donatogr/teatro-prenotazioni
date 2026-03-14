@@ -94,6 +94,45 @@ def test_list_prenotazioni(client):
     assert isinstance(data, list)
 
 
+def test_recupera_prenotazioni_success(client):
+    """POST /api/prenotazioni/recupera con telefono+codice restituisce le prenotazioni."""
+    get_r = client.get('/api/posti')
+    posti = get_r.get_json()
+    posto_id = next(p['id'] for p in posti if p['stato'] == 'disponibile')
+    crea = client.post(
+        '/api/prenotazioni',
+        json={'nome': 'Laura Recupero', 'telefono': '3335556677', 'posto_ids': [posto_id]},
+        headers={'Content-Type': 'application/json'},
+    )
+    assert crea.status_code == 200
+    codice = crea.get_json()['codice']
+    r = client.post(
+        '/api/prenotazioni/recupera',
+        json={'telefono': '3335556677', 'codice': codice},
+        headers={'Content-Type': 'application/json'},
+    )
+    assert r.status_code == 200
+    data = r.get_json()
+    assert 'prenotazioni' in data
+    assert len(data['prenotazioni']) == 1
+    assert data['prenotazioni'][0]['nome'] == 'Laura Recupero'
+    assert data['prenotazioni'][0]['telefono'] == '3335556677'
+    assert data['prenotazioni'][0]['posto_id'] == posto_id
+    assert 'posto_fila' in data['prenotazioni'][0]
+    assert 'posto_numero' in data['prenotazioni'][0]
+
+
+def test_recupera_prenotazioni_404(client):
+    """POST /api/prenotazioni/recupera con telefono/codice errati -> 404."""
+    r = client.post(
+        '/api/prenotazioni/recupera',
+        json={'telefono': '3330000000', 'codice': '999999'},
+        headers={'Content-Type': 'application/json'},
+    )
+    assert r.status_code == 404
+    assert 'Nessuna prenotazione' in r.get_json().get('error', '')
+
+
 def test_cancella_prenotazione(client):
     """DELETE /api/prenotazioni/<id> marca come cancellata."""
     # Crea una prenotazione
