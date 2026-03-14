@@ -2,7 +2,7 @@
 
 - [ ] **[PRIO 1]** Utilizzare WebSocket al posto del polling per aggiornare i posti
 
-- [ ] **[PRIO 1]** Aggiungere il log delle operazioni, esportabile in CSV
+- [x] **[PRIO 1]** Aggiungere il log delle operazioni, esportabile in CSV
 
 - [ ] **[PRIO 2]** Possibilità per l'amministratore di modificare le prenotazioni, riassegnando i posti
 

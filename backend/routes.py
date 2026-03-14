@@ -1,11 +1,26 @@
+import json
 import random
 from datetime import datetime, timedelta
-from flask import Blueprint, request, jsonify, current_app
+from flask import Blueprint, request, jsonify, current_app, Response
 from sqlalchemy import text
 from app import db
-from models import Posto, Prenotazione, Blocco, Impostazioni, CodicePrenotazione
+from models import Posto, Prenotazione, Blocco, Impostazioni, CodicePrenotazione, OperazioneLog
 
 api_bp = Blueprint('api', __name__)
+
+
+def _log_operazione(tipo, dettagli=None):
+    """Registra un'operazione nel log (audit). dettagli: dict o str."""
+    try:
+        if isinstance(dettagli, dict):
+            dettagli_str = json.dumps(dettagli, ensure_ascii=False)
+        else:
+            dettagli_str = str(dettagli or '')
+        entry = OperazioneLog(tipo=tipo, dettagli=dettagli_str)
+        db.session.add(entry)
+        db.session.commit()
+    except Exception:
+        db.session.rollback()
 
 def _pulisci_blocchi_scaduti():
     """Rimuove tutti i blocchi con scadenza passata."""
@@ -161,6 +176,7 @@ def crea_prenotazione():
             invio_email_conferma(telefono, nome, nome_allieva or '', posti_etichette, codice)
         except Exception:
             pass
+        _log_operazione('crea_prenotazione', {'telefono': telefono, 'nome': nome, 'nome_allieva': nome_allieva or '', 'posti': posti_etichette, 'codice': codice})
         return jsonify({
             'prenotazioni': [p.to_dict() for p in created],
             'codice': codice,
@@ -232,6 +248,7 @@ def annulla_prenotazioni():
         invio_email_annullamento(telefono, nome, posti_etichette)
     except Exception:
         pass
+    _log_operazione('annulla_prenotazioni', {'telefono': telefono, 'nome': nome, 'posti': posti_etichette})
     return jsonify({'ok': True})
 
 
@@ -284,6 +301,7 @@ def aggiorna_prenotazioni():
             invio_email_conferma(row.telefono, nome_final, nome_allieva_final or '', posti_etichette, row.codice)
         except Exception:
             pass
+        _log_operazione('aggiorna_prenotazioni', {'telefono': row.telefono, 'nome': nome_final, 'posti': posti_etichette})
         return jsonify({'ok': True, 'codice': row.codice})
     except Exception as e:
         db.session.rollback()
@@ -295,8 +313,11 @@ def cancella_prenotazione(pid):
     pren = Prenotazione.query.get(pid)
     if not pren:
         return jsonify({'error': 'Prenotazione non trovata'}), 404
+    posto = Posto.query.get(pren.posto_id)
+    posto_label = f"{posto.fila}{posto.numero}" if posto else str(pren.posto_id)
     pren.stato = 'cancellata'
     db.session.commit()
+    _log_operazione('admin_cancella_prenotazione', {'prenotazione_id': pid, 'telefono': pren.telefono, 'nome': pren.nome, 'posto': posto_label})
     return jsonify({'ok': True})
 
 @api_bp.route('/admin/file/<fila>', methods=['PUT'])
@@ -308,6 +329,7 @@ def admin_file(fila):
     riservato = data.get('riservato_staff', True)
     updated = Posto.query.filter_by(fila=fila.upper()).update({'riservato_staff': riservato})
     db.session.commit()
+    _log_operazione('admin_file', {'fila': fila.upper(), 'riservato_staff': riservato, 'aggiornati': updated})
     return jsonify({'aggiornati': updated})
 
 @api_bp.route('/admin/file', methods=['GET'])
@@ -352,6 +374,7 @@ def admin_set_posto(posto_id):
     riservato = data.get('riservato_staff', True)
     posto.riservato_staff = bool(riservato)
     db.session.commit()
+    _log_operazione('admin_set_posto', {'posto_id': posto_id, 'fila': posto.fila, 'numero': posto.numero, 'riservato_staff': riservato})
     return jsonify({'ok': True, 'riservato_staff': posto.riservato_staff})
 
 
@@ -386,6 +409,47 @@ def admin_export():
     by_person.sort(key=lambda x: (-x['count'], x['nome'], x['telefono']))
     by_seat.sort(key=lambda x: (x['fila'], x['numero']))
     return jsonify({'bySeat': by_seat, 'byPerson': by_person})
+
+
+@api_bp.route('/admin/log', methods=['GET'])
+def admin_get_log():
+    """Restituisce il log delle operazioni (solo admin)."""
+    if not _admin_auth():
+        return jsonify({'error': 'Non autorizzato'}), 401
+    limit = request.args.get('limit', type=int)
+    if limit is None or limit < 1:
+        limit = 1000
+    limit = min(limit, 10000)
+    rows = OperazioneLog.query.order_by(OperazioneLog.timestamp.desc()).limit(limit).all()
+    return jsonify([r.to_dict() for r in rows])
+
+
+def _escape_csv_cell(val):
+    """Escape per cella CSV (virgolette se contiene separatore o virgolette)."""
+    s = str(val) if val is not None else ''
+    if ';' in s or '"' in s or '\n' in s or '\r' in s:
+        return '"' + s.replace('"', '""') + '"'
+    return s
+
+
+@api_bp.route('/admin/log/export', methods=['GET'])
+def admin_export_log_csv():
+    """Esporta il log operazioni in CSV (solo admin)."""
+    if not _admin_auth():
+        return jsonify({'error': 'Non autorizzato'}), 401
+    limit = request.args.get('limit', type=int)
+    if limit is None or limit < 1:
+        limit = 50000
+    limit = min(limit, 50000)
+    rows = OperazioneLog.query.order_by(OperazioneLog.timestamp.desc()).limit(limit).all()
+    lines = ['Data e ora;Tipo;Dettagli']
+    for r in rows:
+        ts = r.timestamp.strftime('%Y-%m-%d %H:%M:%S') if r.timestamp else ''
+        lines.append(f"{_escape_csv_cell(ts)};{_escape_csv_cell(r.tipo)};{_escape_csv_cell(r.dettagli or '')}")
+    body = '\n'.join(lines)
+    return Response(body, mimetype='text/csv; charset=utf-8', headers={
+        'Content-Disposition': 'attachment; filename=log_operazioni.csv',
+    })
 
 
 @api_bp.route('/admin/impostazioni', methods=['GET'])
@@ -452,6 +516,7 @@ def admin_put_impostazioni():
     if isinstance(gruppi, list):
         row.set_gruppi_file([g for g in gruppi if isinstance(g, dict) and g.get('lettere') and g.get('nome')])
     db.session.commit()
+    _log_operazione('admin_impostazioni', {'nome_spettacolo': row.nome_spettacolo or ''})
     return jsonify({'ok': True})
 
 
@@ -473,8 +538,10 @@ def admin_genera_posti():
     for i, letter in enumerate(letters):
         for n in range(1, row.posti_per_fila + 1):
             db.session.add(Posto(fila=letter, numero=n, disponibile=True, riservato_staff=False))
+    creati = row.numero_file * row.posti_per_fila
     db.session.commit()
-    return jsonify({'ok': True, 'creati': row.numero_file * row.posti_per_fila})
+    _log_operazione('admin_genera_posti', {'creati': creati})
+    return jsonify({'ok': True, 'creati': creati})
 
 
 # --- Blocco temporaneo posti ---

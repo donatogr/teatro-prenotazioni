@@ -8,8 +8,10 @@ import {
   getImpostazioni,
   putImpostazioni,
   generaPosti,
+  getLogOperazioni,
+  downloadLogCsv,
 } from '../services/api'
-import type { Posto, ExportBySeat, ExportByPerson, Impostazioni, GruppoFile } from '../types'
+import type { Posto, ExportBySeat, ExportByPerson, Impostazioni, GruppoFile, OperazioneLogEntry } from '../types'
 import styles from './AdminPanel.module.css'
 
 /** Formatta timestamp ISO in "gg/mm/aaaa hh:mm" per visualizzazione. */
@@ -52,7 +54,7 @@ const PERSON_COLORS = [
   '#f87171', '#ef4444', '#be123c', '#9f1239', '#881337',
 ]
 
-type Tab = 'spettacolo' | 'teatro' | 'mappa' | 'elenco'
+type Tab = 'spettacolo' | 'teatro' | 'mappa' | 'elenco' | 'log'
 
 interface AdminPanelProps {
   onClose: () => void
@@ -80,6 +82,9 @@ export function AdminPanel({ onClose, onFileChange }: AdminPanelProps) {
   const [lastExportAt, setLastExportAt] = useState<Date | null>(null)
   const [newCountBadge, setNewCountBadge] = useState<number>(0)
   const prevExportTotalRef = useRef(0)
+  const [logOperazioni, setLogOperazioni] = useState<OperazioneLogEntry[]>([])
+  const [logLoading, setLogLoading] = useState(false)
+  const [logExporting, setLogExporting] = useState(false)
 
   const loadPosti = useCallback(() => {
     if (!password) return
@@ -98,6 +103,18 @@ export function AdminPanel({ onClose, onFileChange }: AdminPanelProps) {
         setImpostazioniState(null)
         setError('Impossibile caricare le impostazioni. Riprova a ricaricare la pagina.')
       })
+  }, [password])
+
+  const loadLog = useCallback(() => {
+    if (!password) return
+    setLogLoading(true)
+    getLogOperazioni(password)
+      .then(setLogOperazioni)
+      .catch(() => {
+        setLogOperazioni([])
+        setError('Impossibile caricare il log. Riprova.')
+      })
+      .finally(() => setLogLoading(false))
   }, [password])
 
   const loadExport = useCallback(() => {
@@ -147,7 +164,8 @@ export function AdminPanel({ onClose, onFileChange }: AdminPanelProps) {
       loadExport()
     }
     if (tab === 'elenco') loadExport()
-  }, [authenticated, tab, loadImpostazioni, loadPosti, loadExport])
+    if (tab === 'log') loadLog()
+  }, [authenticated, tab, loadImpostazioni, loadPosti, loadExport, loadLog])
 
   const byFila = useMemo(() => {
     const acc: Record<string, Posto[]> = {}
@@ -442,6 +460,7 @@ export function AdminPanel({ onClose, onFileChange }: AdminPanelProps) {
     { id: 'teatro', label: 'Caratteristiche teatro' },
     { id: 'mappa', label: 'Mappa e prenotazioni' },
     { id: 'elenco', label: 'Elenco prenotazioni' },
+    { id: 'log', label: 'Log operazioni' },
   ]
 
   return (
@@ -506,6 +525,77 @@ export function AdminPanel({ onClose, onFileChange }: AdminPanelProps) {
                 onToggleFila={toggleFila}
                 onTogglePosto={togglePosto}
               />
+            )}
+
+            {tab === 'log' && (
+              <div className={styles.elencoSection}>
+                <h3 className={styles.elencoTitle}>Log operazioni</h3>
+                <p className={styles.logIntro}>
+                  Registro delle operazioni (prenotazioni, annullamenti, modifiche admin). Ultimi 2000 record.
+                </p>
+                <div className={styles.logActions}>
+                  <button
+                    type="button"
+                    className={styles.exportLoadBtn}
+                    onClick={loadLog}
+                    disabled={logLoading}
+                    aria-label="Aggiorna log"
+                  >
+                    {logLoading ? 'Caricamento...' : 'Aggiorna log'}
+                  </button>
+                  <button
+                    type="button"
+                    className={styles.exportLoadBtn}
+                    onClick={() => {
+                      if (!password) return
+                      setLogExporting(true)
+                      downloadLogCsv(password)
+                        .catch(() => setError('Errore durante l\'esportazione CSV.'))
+                        .finally(() => setLogExporting(false))
+                    }}
+                    disabled={logExporting}
+                    aria-label="Esporta log in CSV"
+                  >
+                    {logExporting ? 'Export...' : 'Esporta CSV'}
+                  </button>
+                </div>
+                {logLoading && (
+                  <div className={styles.exportTableWrap}>
+                    <div className={styles.skeletonTable}>
+                      {[1, 2, 3, 4, 5].map((i) => (
+                        <div key={i} className={styles.skeletonRow} />
+                      ))}
+                    </div>
+                  </div>
+                )}
+                {!logLoading && (
+                  <div className={styles.exportTableWrap}>
+                    <table className={styles.exportTable}>
+                      <thead>
+                        <tr>
+                          <th>Data e ora</th>
+                          <th>Tipo</th>
+                          <th>Dettagli</th>
+                        </tr>
+                      </thead>
+                      <tbody>
+                        {logOperazioni.length === 0 && (
+                          <tr>
+                            <td colSpan={3}>Nessuna operazione registrata.</td>
+                          </tr>
+                        )}
+                        {logOperazioni.map((entry) => (
+                          <tr key={entry.id}>
+                            <td>{formatExportDate(entry.timestamp ?? undefined)}</td>
+                            <td>{entry.tipo}</td>
+                            <td className={styles.logDettagli}>{entry.dettagli || '—'}</td>
+                          </tr>
+                        ))}
+                      </tbody>
+                    </table>
+                  </div>
+                )}
+              </div>
             )}
 
             {tab === 'elenco' && (

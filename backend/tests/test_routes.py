@@ -279,3 +279,46 @@ def test_aggiorna_prenotazioni(client):
     )
     assert r.status_code == 200
     assert r.get_json().get('ok') is True
+
+
+def test_admin_log_unauthorized(client):
+    """GET /api/admin/log senza password non restituisce 200."""
+    r = client.get('/api/admin/log', headers={'Accept': 'application/json'})
+    assert r.status_code != 200
+    assert 400 <= r.status_code < 500
+
+
+def test_admin_log_success(client):
+    """GET /api/admin/log con password restituisce lista log (anche vuota)."""
+    r = client.get('/api/admin/log', headers={'X-Admin-Password': 'admin123'})
+    assert r.status_code == 200
+    data = r.get_json()
+    assert isinstance(data, list)
+
+
+def test_admin_log_export_csv(client):
+    """GET /api/admin/log/export con password restituisce CSV."""
+    r = client.get('/api/admin/log/export', headers={'X-Admin-Password': 'admin123'})
+    assert r.status_code == 200
+    assert 'text/csv' in (r.headers.get('Content-Type') or '')
+    body = r.get_data(as_text=True)
+    assert 'Data e ora' in body and 'Tipo' in body and 'Dettagli' in body
+
+
+def test_crea_prenotazione_scrive_log(client):
+    """Creare una prenotazione aggiunge una riga al log operazioni."""
+    from models import OperazioneLog
+    posto_id = client.get('/api/posti').get_json()[0]['id']
+    client.post(
+        '/api/prenotazioni',
+        json={
+            'posto_ids': [posto_id],
+            'nome': 'Log Test',
+            'telefono': '3331112233',
+        },
+        headers={'Content-Type': 'application/json'},
+    )
+    with client.application.app_context():
+        logs = OperazioneLog.query.filter_by(tipo='crea_prenotazione').order_by(OperazioneLog.id.desc()).limit(1).all()
+    assert len(logs) == 1
+    assert '3331112233' in (logs[0].dettagli or '')

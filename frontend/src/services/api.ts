@@ -227,3 +227,26 @@ export async function generaPosti(password: string): Promise<{ ok: boolean; crea
   if (!r.ok) throw new Error(body.error || 'Errore');
   return body;
 }
+
+export async function getLogOperazioni(password: string): Promise<import('../types').OperazioneLogEntry[]> {
+  const r = await fetch(`${API_BASE}/admin/log?limit=2000`, {
+    headers: { 'X-Admin-Password': password },
+  });
+  if (!r.ok) throw new Error('Non autorizzato');
+  return r.json();
+}
+
+/** Scarica il log operazioni come file CSV. */
+export async function downloadLogCsv(password: string): Promise<void> {
+  const r = await fetch(`${API_BASE}/admin/log/export?limit=50000`, {
+    headers: { 'X-Admin-Password': password },
+  });
+  if (!r.ok) throw new Error('Non autorizzato');
+  const blob = await r.blob();
+  const url = URL.createObjectURL(blob);
+  const a = document.createElement('a');
+  a.href = url;
+  a.download = 'log_operazioni.csv';
+  a.click();
+  URL.revokeObjectURL(url);
+}

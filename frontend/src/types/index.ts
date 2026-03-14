@@ -68,3 +68,10 @@ export interface Impostazioni {
   posti_per_fila: number | null;
   gruppi_file: GruppoFile[];
 }
+
+export interface OperazioneLogEntry {
+  id: number;
+  timestamp: string | null;
+  tipo: string;
+  dettagli: string;
+}

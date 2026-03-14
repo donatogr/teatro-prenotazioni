@@ -81,3 +81,20 @@ class Prenotazione(db.Model):
 
     def __repr__(self):
         return f'<Prenotazione {self.id} posto={self.posto_id}>'
+
+
+class OperazioneLog(db.Model):
+    """Log delle operazioni (prenotazioni, annullamenti, azioni admin) per audit e export CSV."""
+    __tablename__ = 'operazioni_log'
+    id = db.Column(db.Integer, primary_key=True)
+    timestamp = db.Column(db.DateTime, default=datetime.utcnow, nullable=False)
+    tipo = db.Column(db.String(50), nullable=False)  # es. crea_prenotazione, annulla_prenotazioni, admin_cancella, ...
+    dettagli = db.Column(db.Text, default='')  # JSON o testo leggibile (telefono, nome, posti, ecc.)
+
+    def to_dict(self):
+        return {
+            'id': self.id,
+            'timestamp': self.timestamp.isoformat() if self.timestamp else None,
+            'tipo': self.tipo,
+            'dettagli': self.dettagli or '',
+        }

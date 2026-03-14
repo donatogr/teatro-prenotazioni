@@ -192,6 +192,26 @@
   color: rgba(255, 255, 255, 0.95);
 }
 
+.logIntro {
+  font-size: 0.9rem;
+  color: rgba(255, 255, 255, 0.75);
+  margin: 0 0 0.75rem 0;
+}
+
+.logActions {
+  display: flex;
+  gap: 0.5rem;
+  margin-bottom: 1rem;
+  flex-wrap: wrap;
+}
+
+.logDettagli {
+  max-width: 320px;
+  word-break: break-word;
+  font-family: ui-monospace, monospace;
+  font-size: 0.8rem;
+}
+
 .lastExportAt {
   font-size: 0.8rem;
   color: rgba(255, 255, 255, 0.6);
