@@ -2,6 +2,10 @@
 
 - [ ] **[PRIO 1]** Utilizzare WebSocket al posto del polling per aggiornare i posti
 
+- [ ] **[PRIO 1]** Aggiungere il log delle operazioni, esportabile in CSV
+
+- [ ] **[PRIO 2]** Possibilità per l'amministratore di modificare le prenotazioni, riassegnando i posti
+
 - [ ] **[PRIO 3]** Nella schermata di ringraziamento, mettere 3 opzioni: **Ho finito**, **Nuova prenotazione**, **Modifica prenotazione**
   - Premendo "Ho finito" si viene invitati a chiudere la finestra
   - Premendo "Nuova prenotazione" si è riportati alla schermata iniziale, come se fosse un nuovo utente
